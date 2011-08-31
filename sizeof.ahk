@@ -56,8 +56,8 @@ sizeof(_TYPE_){
       If (InStr(_union_,"`b")=1){
         If (_offset_<_total_union_size_:=_struct_ + (_TYPE_["`r" SubStr(_union_,2)]?A_PtrSize:sizeof(_TYPE_["`t" SubStr(_union_,2)])) )
           _offset_:=_total_union_size_
-      } else if (IsObject(_struct_) && (_offset_<_total_union_size_:=sizeof(_struct_) )){
-        _offset_:=_offset_+_total_union_size_
+      } else if (IsObject(_struct_) && (_offset_<_total_union_size_:=_struct_[""]-_TYPE_[""]+sizeof(_struct_))){
+        _offset_:=_total_union_size_
       }
     }
     If _TYPE_["`t"] ; type only, structure has no members and its a pointer
