@@ -85,14 +85,14 @@ Class _Struct {
   
   __NEW(_TYPE_,_pointer_=0,_init_=0){
     global _Struct
-    static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone}
+    static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW}
 
     If (RegExMatch(_TYPE_,"^[\w\d]+$") && !this.base.HasKey(_TYPE_)) ; structures name was supplied, resolve to global var and run again
       _TYPE_:=%_TYPE_%
     
     ; If a pointer is supplied, save it in key [""] else reserve and zero-fill memory + set pointer in key [""]
     If (_pointer_ && !IsObject(_pointer_))
-      this[""] := _pointer_
+      this[""] := _pointer_,this["`a"]:=0
     else
       this._SetCapacity("`a",_StructSize_:=sizeof(_TYPE_)) ; Set Capacity in key ["`a"]
       ,this[""]:=this._GetAddress("`a") ; Save pointer in key [""]
@@ -266,6 +266,22 @@ Class _Struct {
     Return this
   }
   
+  ___NEW(init*){
+    this:=this.base
+    new := this.__Clone(1) ;clone structure and keep pointer (1), it will be changed below
+    If (init.MaxIndex() && !IsObject(init.1))
+      new[""] := init.1
+    else If (init.MaxIndex()>1 && !IsObject(init.2))
+      new[""] := init.2
+    else
+      new._SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
+      ,new[""]:=new._GetAddress("`a") ; Save pointer in key [""]
+      ,DllCall("RtlFillMemory","UPTR",new[""],"UInt",_StructSize_,"UChar",0) ; zero-fill memory
+    If (IsObject(init.1)||IsObject(init.2))
+      for _key_,_value_ in IsObject(init.1)?init.1:init.2
+          new[_key_] := _value_
+    return new
+  }
   ___SETPTR(_newPTR_="",_object_=0){ ;only called internally to reset pointers in structure
     If !_object_ ; called not recrusive so use this (main structure)
       _obj_:=this
@@ -283,7 +299,7 @@ Class _Struct {
   ; Clone structure and move pointer for new structure
   ___Clone(offset){
     global _Struct
-    static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone}
+    static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW}
     new:={} ; new structure object
     for k,v in this ; copy all values/objects
       if IsObject(v) ; its an object (structure in structure)
