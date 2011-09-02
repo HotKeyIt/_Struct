@@ -141,7 +141,9 @@ Class _Struct {
     ; User structures will be resolved by recrusive calls (!!! a structure must be a global variable)
     Loop,Parse,_TYPE_,`,`;,%A_Space%%A_Tab%`n`r
     {
-      _LF_ := A_LoopField,_IsPtr_:=0
+      If (""=_LF_ := A_LoopField)
+        Continue
+      _IsPtr_:=0
       ; Check for STARTING union and set union helpers
       While (RegExMatch(_LF_,"i)(struct|union)?\s*\{\K"))
         _union_.Insert(_offset_)
