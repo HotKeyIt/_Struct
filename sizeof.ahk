@@ -65,10 +65,16 @@ sizeof(_TYPE_){
     Return _offset_  ;(_TYPE_["`t"]?4:0) ; if offset 0 and memory set,must be a pointer
   }
   
-  If (RegExMatch(_TYPE_,"^[\w\d]+$") && !this.base.HasKey(_TYPE_)) ; structures name was supplied, resolve to global var and run again
+  If (RegExMatch(_TYPE_,"^[\w\d.]+$") && !this.base.HasKey(_TYPE_)) ; structures name was supplied, resolve to global var and run again
       If InStr(_types_,"," _TYPE_ ":")
         Return SubStr(_types_,InStr(_types_,"," _TYPE_ ":") + 2 + StrLen(_TYPE_),1)
-      else Return sizeof(%_TYPE_%)
+      else If InStr(_TYPE_,"."){ ;check for object that holds structure definition
+        Loop,Parse,_TYPE_,.
+          If A_Index=1
+            _defobj_:=%A_LoopField%
+          else _defobj_:=_defobj_[A_LoopField]
+        Return sizeof(_defobj_)
+      } else Return sizeof(%_TYPE_%)
       
   If InStr(_TYPE_,"`n") {   ; C/C++ style definition, convert
     _offset_:=""            ; This will hold new structure
@@ -128,15 +134,22 @@ sizeof(_TYPE_){
       _offset_ += A_PtrSize
     else {
       ; Split array type and optionally the size of array, e.g. "TCHAR chr[5]"
-      RegExMatch(_LF_,"^\s*(?<ArrType_>\w+)?\s*(?<ArrName_>\w+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*$",_)
+      RegExMatch(_LF_,"^\s*(?<ArrType_>[\w\d.]+)?\s*(?<ArrName_>\w+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*$",_)
       If (!_ArrName_ && !_ArrSize_ && !InStr( _types_  ,"," _ArrType_ ":"))
         _ArrName_:=_ArrType_,_ArrType_:="UInt"
-
+      
+      If InStr(this["`t" _key_],"."){ ;check for object that holds structure definition
+        _ArrType_:=this["`t" _key_]
+        Loop,Parse,_ArrType_,.
+          If A_Index=1
+            _defobj_:=%A_LoopField%
+          else _defobj_:=_defobj_[A_LoopField]
+      }
       If (_idx_:=InStr( _types_  ,"," _ArrType_ ":")){ ; AHK or Windows data type
         ; find out the size in _types_ and add to total size
         _offset_ += SubStr( _types_  , _idx_+StrLen(_ArrType_)+2 , 1 ) * (_ArrSize_?_ArrSize_:1)
       } else ; resolve structure
-        _offset_ += sizeof(%_ArrType_%) * (_ArrSize_?_ArrSize_:1) ; %Array1% will resolve to global variable
+        _offset_ += sizeof(_defobj_?_defobj_:%_ArrType_%) * (_ArrSize_?_ArrSize_:1) ; %Array1% will resolve to global variable
     }
     If _union_.MaxIndex()
           _union_size_[_union_.MaxIndex()]:=(_offset_ - _union_[_union_.MaxIndex()]>_union_size_[_union_.MaxIndex()])

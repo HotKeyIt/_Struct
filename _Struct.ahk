@@ -87,8 +87,14 @@ Class _Struct {
     global _Struct
     static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW}
 
-    If (RegExMatch(_TYPE_,"^[\w\d]+$") && !this.base.HasKey(_TYPE_)) ; structures name was supplied, resolve to global var and run again
-      _TYPE_:=%_TYPE_%
+    If (RegExMatch(_TYPE_,"^[\w\d\.]+$") && !this.base.HasKey(_TYPE_)) ; structures name was supplied, resolve to global var and run again
+      If InStr(_TYPE_,"."){ ;check for object that holds structure definition
+        Loop,Parse,_TYPE_,.
+          If A_Index=1
+            _defobj_:=%A_LoopField%
+          else _defobj_:=_defobj_[A_LoopField]
+        _TYPE_:=_defobj_
+      } else _TYPE_:=%_TYPE_%
     
     ; If a pointer is supplied, save it in key [""] else reserve and zero-fill memory + set pointer in key [""]
     If (_pointer_ && !IsObject(_pointer_))
@@ -161,7 +167,7 @@ Class _Struct {
       }
 
       ; Split off data type, name and size (only data type is mandatory)
-      RegExMatch(_LF_,"^\s*(?<ArrType_>\w+)?\s*(?<ArrName_>\w+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*\}*\s*$",_)
+      RegExMatch(_LF_,"^\s*(?<ArrType_>[\w\d\.]+)?\s*(?<ArrName_>\w+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*\}*\s*$",_)
 
       If (!_ArrName_ && !_ArrSize_){
         ; If (_ArrType_=_TYPE_ || (_ArrType_ "*") =_TYPE_ || ("*" _ArrType_=_TYPE_)) {
@@ -181,7 +187,13 @@ Class _Struct {
         } else 
           _ArrName_:=_ArrType_,_ArrType_:="UInt"
       }
-      
+      If InStr(this["`t" _key_],"."){ ;check for object that holds structure definition
+        _ArrType_:=this["`t" _key_]
+        Loop,Parse,_ArrType_,.
+          If A_Index=1
+            _defobj_:=%A_LoopField%
+          else _defobj_:=_defobj_[A_LoopField]
+      }
       ; Set structure keys.
       ; If type is not a pointer and not a Windows or AHK data type, it must be a global variable containing structure definition
       If (!_IsPtr_ && _ArrSize_) {  ; Array size supplied, e.g. TCHAR chr[5]
@@ -190,31 +202,17 @@ Class _Struct {
           _new_struct_ .= (_new_struct_?",":"") _ArrType_ " " A_Index
         If RegExMatch(_TYPE_,"^\s*" _ArrType_ "\s*\[\s*" _ArrSize_ "\s*\]\s*$")
           return this:=new _struct(_new_struct_,pointer)
-        If RegExMatch(_TYPE_,"^\s*" _ArrType_ "\s*\[\s*" _ArrSize_ "\s*\]\s*$"){ ;structure name was not given we have to create items 1,2,3... in this structure
-          this["`t"]:=_TYPE_
-          ,this["`n"]:=this.base.HasKey("_" _ArrType_)?this.base["_" _ArrType_]:"PTR"
-          ,this["`r"]:=_IsPtr_
-          ,this["`b"]:=0
-          If _ArrType_ in LPTSTR,LPCTSTR,TCHAR
-            this["`f"] := A_IsUnicode ? "UTF-16" : "CP0"
-          else if _ArrType_ in LPWSTR,LPCWSTR,WCHAR
-            this["`f"] := "UTF-16"
-          else
-            this["`f"] := "CP0"
-          Loop % _ArrSize_
-            this.Insert(A_Index,new _Struct(_ArrType_,this[""] + _offset_ + ((A_Index-1)*sizeof(_ArrType_))))     ; Create new structure and assign to _ArrName_
-          _offset_+=sizeof(_ArrType_)*_ArrSize_       ; update offset
-        } else {
+        else {
           this.Insert(_ArrName_,new _Struct(_new_struct_,this[""] + _offset_))     ; Create new structure and assign to _ArrName_
           _offset_+=sizeof(_new_struct_)       ; update offset
         }
         Continue
-      } else If (!_IsPtr_ && !_Struct.HasKey(_ArrType_) && !%_ArrType_%) {     ; Data type not found, also not structure was found
+      } else If (!_IsPtr_ && !_Struct.HasKey(_ArrType_) && !_defobj_ && !%_ArrType_%) {     ; Data type not found, also not structure was found
           MsgBox Structure %_ArrType_% not found, program will exit now         ; Display error message and exit app
           ExitApp
       } else if (!_IsPtr_ && !_Struct.HasKey(_ArrType_)){  ; _ArrType_ not found resolve to global variable (must contain struct definition)
-          this.Insert(_ArrName_, new _Struct(%_ArrType_%,this[""] + _offset_,1))
-          _offset_+=sizeof(%_ArrType_%) ; move offset
+          this.Insert(_ArrName_, new _Struct(_defobj_?_defobj_:%_ArrType_%,this[""] + _offset_,1))
+          _offset_+=sizeof(_defobj_?_defobj_:%_ArrType_%) ; move offset
           Continue
       } else {
         this["`t" _ArrName_] := _ArrType_
@@ -259,12 +257,16 @@ Class _Struct {
       }
     }
     this.base:=_base_ ; apply new base which uses below functions and uses ___GET for __GET and ___SET for __SET
-    If (IsObject(_init_)){ ; Initialization of structures members, e.g. _Struct(_RECT,{left:10,right:20})
-      for _key_,_value_ in _init_
-        this[_key_] := _value_
-    } else if IsObject(_pointer_) ; Same as above but instead of pointer a initialization
-      for _key_,_value_ in _pointer_
-        this[_key_] := _value_
+    If (IsObject(_init_)||IsObject(_pointer_)){ ; Initialization of structures members, e.g. _Struct(_RECT,{left:10,right:20})
+      for _key_,_value_ in IsObject(_init_)?_init_:_pointer_
+      {
+        If !this["`r" _key_] ; It is not a pointer, assign value
+          this[_key_] := _value_
+        else if (_value_<>"") ; It is not empty or 
+          if _value_ is digit ; It is a new pointer
+            this[_key_][""]:=_value_
+      }
+    }
     Return this
   }
   
@@ -343,9 +345,18 @@ Class _Struct {
       } else If this["`r"]{ ;similar as above but always creates new structure
         Loop % (this["`r"]-1) 
           pointer.="*"
+        If (!pointer && InStr(this["`t"],".")){ ;check for object that holds structure definition
+          _ArrType_:=this["`t"]
+          Loop,Parse,_ArrType_,.
+          {
+            If A_Index=1
+              _defobj_:=%A_LoopField%
+            else _defobj_:=_defobj_[A_LoopField]
+          }
+        }
         if (opt="~")
-          Return (new _Struct(pointer this["`t"],NumGet(this[""],0,"PTR")))[_key_]
-        else Return (new _Struct(pointer this["`t"],NumGet(this[""],0,"PTR")))[_key_,opt]
+          Return (new _Struct(pointer (!pointer&&_defobj_?_defobj_:this["`t"]),NumGet(this[""],0,"PTR")))[_key_]
+        else Return (new _Struct(pointer (!pointer&&_defobj_?_defobj_:this["`t"]),NumGet(this[""],0,"PTR")))[_key_,opt]
       } else return
     ; from here on we have items in structure
     } else If (!this.HasKey("`t" _key_)&&_key_<>""){
@@ -358,9 +369,18 @@ Class _Struct {
     } else If (this["`r" _key_]){ ; Pointer, create structure using structure its type and address saved in structure
       Loop % (this["`r" _key_]-1) 
           pointer.="*"
+      If (!pointer && InStr(this["`t" _key_],".")){ ;check for object that holds structure definition
+        _ArrType_:=this["`t" _key_]
+        Loop,Parse,_ArrType_,.
+        {
+          If A_Index=1
+            _defobj_:=%A_LoopField%
+          else _defobj_:=_defobj_[A_LoopField]
+        }
+      }
       If (opt="~"){
-        Return new _Struct(pointer this["`t" _key_],pointer?NumGet(NumGet(this[""]+this["`b" _key_],0,"PTR"),0,"ptr"):NumGet(this[""]+this["`b" _key_],0,"PTR"))
-      } else Return (new _Struct(pointer this["`t" _key_],pointer?NumGet(NumGet(this[""]+this["`b" _key_],0,"PTR"),0,"ptr"):NumGet(this[""]+this["`b" _key_],0,"PTR")))[opt] ;NumGet(this[""]+this["`b" _key_],0,"PTR") ;this[_key_][opt]
+        Return new _Struct(pointer (!pointer&&_defobj_?_defobj_:this["`t" _key_]),pointer?NumGet(NumGet(this[""]+this["`b" _key_],0,"PTR"),0,"ptr"):NumGet(this[""]+this["`b" _key_],0,"PTR"))
+      } else Return (new _Struct(pointer (!pointer&&_defobj_?_defobj_:this["`t" _key_]),pointer?NumGet(NumGet(this[""]+this["`b" _key_],0,"PTR"),0,"ptr"):NumGet(this[""]+this["`b" _key_],0,"PTR")))[opt] ;NumGet(this[""]+this["`b" _key_],0,"PTR") ;this[_key_][opt]
     } else if (opt=""){        ; Additional parameter was given and it is empty so return pointer to _key_ (struct.key[""])ListVars
       Return this[""]+this["`b" _key_]
     } else If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t" _key_] "," )){  ; StrGet 1 character only
@@ -389,7 +409,16 @@ Class _Struct {
         ; else resolve to structure and pass key and value to it
         Loop % (this["`r"]-1) 
           pointer.="*"
-        return (new _Struct(pointer this["`t"],this["`r"]?NumGet(this[""],0,"PTR"):this[""]))[_key_]:=_value_
+        If (!pointer && InStr(this["`t"],".")){ ;check for object that holds structure definition
+          _ArrType_:=this["`t"]
+          Loop,Parse,_ArrType_,.
+          {
+            If A_Index=1
+              _defobj_:=%A_LoopField%
+            else _defobj_:=_defobj_[A_LoopField]
+          }
+        }
+        return (new _Struct(pointer (!pointer&&_defobj_?_defobj_:this["`t"]),this["`r"]?NumGet(this[""],0,"PTR"):this[""]))[_key_]:=_value_
       } else if this["`r" _key_]{ ; Pointer
         If opt ;same as above but our structure has items
           If opt is digit  
