@@ -404,7 +404,7 @@ Class _Struct {
           }
         ; else It is a string, use internal memory for string and pointer, then save pointer in key so it is a Pointer to Pointer of a string
         If InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," )
-          this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+2) + A_PtrSize) ; A_PtrSize to save additionally a pionter to string
+          this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+1) + A_PtrSize) ; A_PtrSize to save additionally a pionter to string
           ,NumPut(this._GetAddress("`v" _key_)+A_PtrSize,this._GetAddress("`v" _key_),0,"PTR") ; NumPut addr of string
           ,StrPut(_value_,this._GetAddress("`v" _key_)+A_PtrSize,this["`f" _key_]) ; StrPut char to addr+A_PtrSize
           ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],0,"PTR") ; NumPut pointer addr to key
@@ -417,7 +417,7 @@ Class _Struct {
           ,NumPut(_value_,this._GetAddress("`v" _key_),0,this["`n" _key_])
           ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],A_PtrSize=8?"UInt64":"UInt") ; NumPut new addr to key
       } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ 
-        this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+1)) ; for simplicity add 2 bytes instead of checking for UNICODE or ANSI
+        this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+1)) ; +1 for string terminator
         ,StrPut(_value_,this._GetAddress("`v" _key_),this["`f" _key_]) ; StrPut string to addr
         ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],0,"PTR") ; NumPut string addr to key
       } else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t" _key_] "," ){
