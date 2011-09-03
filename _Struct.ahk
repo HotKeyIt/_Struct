@@ -367,14 +367,14 @@ Class _Struct {
       Return this[""]+this["`b" _key_]
     } else If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t" _key_] "," )){  ; StrGet 1 character only
       Return StrGet(this[""]+this["`b" _key_],1,this["`f" _key_])
-    } else if InStr( ",LPSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ ; StrGet string
+    } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ ; StrGet string
       Return StrGet(NumGet(this[""]+this["`b" _key_],0,"PTR"),this["`f" _key_])
     } else    ; It is not a pointer and not a string so use NumGet
       Return NumGet(this[""]+this["`b" _key_],0,this["`n" _key_])
   }
-  ___SET(_key_="",_value_=9223372036854775809,opt="~"){
+  ___SET(_key_="",_value_=-0x8000000000000000 ,opt="~"){
       global _Struct
-      If (_value_=9223372036854775809){ ; Set new Pointer, here a value was assigned e.g. struct[]:=&var
+      If (_value_=-0x8000000000000000){ ; Set new Pointer, here a value was assigned e.g. struct[]:=&var
           this._SetCapacity("`a",0) ; free internal memory as this is not used anymore
           this.__SETPTR(_key_) ; Reset all pointers in structure
           Return
@@ -403,7 +403,7 @@ Class _Struct {
             } else return NumPut(opt,this[""] + this["`b" _key_],0,"PTR")
           }
         ; else It is a string, use internal memory for string and pointer, then save pointer in key so it is a Pointer to Pointer of a string
-        If InStr( ",LPSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," )
+        If InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," )
           this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+2) + A_PtrSize) ; A_PtrSize to save additionally a pionter to string
           ,NumPut(this._GetAddress("`v" _key_)+A_PtrSize,this._GetAddress("`v" _key_),0,"PTR") ; NumPut addr of string
           ,StrPut(_value_,this._GetAddress("`v" _key_)+A_PtrSize,this["`f" _key_]) ; StrPut char to addr+A_PtrSize
@@ -416,8 +416,8 @@ Class _Struct {
           this._SetCapacity("`v" _key_,A_PtrSize) ; Internal memory for address
           ,NumPut(_value_,this._GetAddress("`v" _key_),0,this["`n" _key_])
           ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],A_PtrSize=8?"UInt64":"UInt") ; NumPut new addr to key
-      } else if InStr( ",LPSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ 
-        this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+2)) ; for simplicity add 2 bytes instead of checking for UNICODE or ANSI
+      } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ 
+        this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+1)) ; for simplicity add 2 bytes instead of checking for UNICODE or ANSI
         ,StrPut(_value_,this._GetAddress("`v" _key_),this["`f" _key_]) ; StrPut string to addr
         ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],0,"PTR") ; NumPut string addr to key
       } else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t" _key_] "," ){
