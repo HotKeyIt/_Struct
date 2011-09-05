@@ -163,6 +163,7 @@ sizeof(_TYPE_){
         MsgBox Incorrect structure, missing opening braket {`nProgram will exit now `n%_TYPE_%
         ExitApp
       }
+      _offset_:=_union_[_union_.MaxIndex()] ; reset offset because we left a union or structure
       ; Increase total size of union/structure if necessary
       _total_union_size_ := _union_size_[_union_.MaxIndex()]>_total_union_size_?_union_size_[_union_.MaxIndex()]:_total_union_size_
       ,_union_.Remove() ; remove latest items
@@ -172,7 +173,7 @@ sizeof(_TYPE_){
       If !_union_.MaxIndex(){ ; leaving top union, add offset
         _offset_+=_total_union_size_
         _total_union_size_:=0
-      } else _offset_:=_union_[_union_.MaxIndex()] ; reset offset because we left a union or structure
+      }
     }
   }
   Return _offset_

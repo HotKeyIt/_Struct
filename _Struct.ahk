@@ -245,6 +245,7 @@ Class _Struct {
           ExitApp
         }
         ; Increase total size of union/structure if necessary
+        _offset_:=_union_[_union_.MaxIndex()] ; reset offset because we left a union or structure
         _total_union_size_ := _union_size_[_union_.MaxIndex()]>_total_union_size_?_union_size_[_union_.MaxIndex()]:_total_union_size_
         ,_union_.Remove() ; remove latest items
         ,_struct_.Remove()
@@ -253,7 +254,7 @@ Class _Struct {
         If !_union_.MaxIndex(){ ; leaving top union, add offset
           _offset_+=_total_union_size_
           _total_union_size_:=0
-        } else _offset_:=_union_[_union_.MaxIndex()] ; reset offset because we left a union or structure
+        }
       }
     }
     this.base:=_base_ ; apply new base which uses below functions and uses ___GET for __GET and ___SET for __SET
