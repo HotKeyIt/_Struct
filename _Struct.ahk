@@ -52,7 +52,9 @@ Class _Struct {
     ,PULONG64:=A_PtrSize,PUSHORT:=A_PtrSize,PVOID:=A_PtrSize,PWCHAR:=A_PtrSize,PWORD:=A_PtrSize,PWSTR:=A_PtrSize,SC_HANDLE:=A_PtrSize
     ,SC_LOCK:=A_PtrSize,SERVICE_STATUS_HANDLE:=A_PtrSize,SIZE_T:=A_PtrSize,UINT_PTR:=A_PtrSize,ULONG_PTR:=A_PtrSize,ATOM:=2,LANGID:=2,WCHAR:=2,WORD:=2
 	; Data Types
-  static _VOID:="PTR",_TBYTE:=A_IsUnicode?"USHORT":"UCHAR",_TCHAR:=A_IsUnicode?"USHORT":"UCHAR",_HALF_PTR:=A_PtrSize=8?"INT":"SHORT"
+  static _PTR:="PTR",_UPTR:="UPTR",_SHORT:="Short",_USHORT:="UShort",_INT:="Int",_UINT:="UInt"
+    ,_INT64:="Int64",_UINT64:="UInt64",_DOUBLE:="Double",_FLOAT:="Float",_CHAR:="Char",_UCHAR:="UChar"
+    ,_VOID:="PTR",_TBYTE:=A_IsUnicode?"USHORT":"UCHAR",_TCHAR:=A_IsUnicode?"USHORT":"UCHAR",_HALF_PTR:=A_PtrSize=8?"INT":"SHORT"
     ,_UHALF_PTR:=A_PtrSize=8?"UINT":"USHORT",_BOOL:="Int",_INT32:="Int",_LONG:="Int",_LONG32:="Int",_LONGLONG:="Int64",_LONG64:="Int64"
     ,_USN:="Int64",_HFILE:="UInt",_HRESULT:="UInt",_INT_PTR:="PTR",_LONG_PTR:="PTR",_POINTER_64:="PTR",_POINTER_SIGNED:="PTR",_SSIZE_T:="PTR"
     ,_WPARAM:="PTR",_BOOLEAN:="UCHAR",_BYTE:="UCHAR",_COLORREF:="UInt",_DWORD:="UInt",_DWORD32:="UInt",_LCID:="UInt",_LCTYPE:="UInt"
@@ -208,6 +210,7 @@ Class _Struct {
         }
         Continue
       } else If (!_IsPtr_ && !_Struct.HasKey(_ArrType_) && !_defobj_ && !%_ArrType_%) {     ; Data type not found, also not structure was found
+          ListVars
           MsgBox Structure %_ArrType_% not found, program will exit now         ; Display error message and exit app
           ExitApp
       } else if (!_IsPtr_ && !_Struct.HasKey(_ArrType_)){  ; _ArrType_ not found resolve to global variable (must contain struct definition)
@@ -331,27 +334,26 @@ Class _Struct {
     If (_key_="")           ; Key was not given so structure[] has been called, return pointer to structure
       Return this[""]
     else If this["`t"]{ ; structure without members (pure pointer)
-      If (_key_="") ; struct[] was called
-        Return this[""] ; return pointer to structure
-      else If _key_ is digit ; struct.1, struct.2.. was called
-      {
-        if (this["`r"]>1) { ; if it is a pointer resolve to structure
-          Loop % (this["`r"]-1) 
-            pointer.="*"
-          if (opt="~") ; pass additional parameter to new structure
-            return (new _Struct(pointer this["`t"],NumGet(this[""],0,"PTR")))[_key_]
-          else  return (new _Struct(pointer this["`t"],NumGet(this[""],0,"PTR")))[_key_,opt]
-        } else ; clone structure and move pointer in new structure
-          return opt?this.__Clone(_key_):(this.__Clone(_key_))[opt]
-      } else If this["`r"]{ ;similar as above but always creates new structure
+      If this["`r"]{ ;similar as below but always creates new structure
         Loop % (this["`r"]-1) 
           pointer.="*"
         if (opt="~")
           Return (new _Struct(pointer this["`t"],NumGet(this[""],0,"PTR")))[_key_]
         else Return (new _Struct(pointer (!pointer&&_defobj_?_defobj_:this["`t"]),NumGet(this[""],0,"PTR")))[_key_,opt]
-      } else return
+      } else If _key_ is digit ; struct.1, struct.2.. was called
+      {
+        If _Struct.HasKey("_" this["`t"]){ ;???????????
+          If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t"] "," )){  ; StrGet 1 character only
+            Return StrGet(this[""]+sizeof(this["`t"])*(_key_-1),1,this["`f"])
+          } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t"] "," ){ ; StrGet string
+            Return StrGet(NumGet(this[""]+sizeof(this["`t"])*(_key_-1),0,"PTR"),this["`f"])
+          } else    ; It is not a pointer and not a string so use NumGet
+            Return NumGet(this[""]+sizeof(this["`t"])*(_key_-1),0,this["`n"])
+        } else
+          return opt?this.__Clone(_key_):(this.__Clone(_key_))[opt]
+      }  else return
     ; from here on we have items in structure
-    } else If (!this.HasKey("`t" _key_)&&_key_<>""){
+    } else If (!this.HasKey("`t" _key_)){
       If _key_ is digit
       {
         If (opt="~")
@@ -389,10 +391,21 @@ Class _Struct {
               return NumPut(opt,this._GetAddress("`v"),0,"PTR") ; address already set do not need to use internal memory
             } else return NumPut(opt,this[""],0,"PTR") ; not a pointer to pointer, set pointer in main structure
           }
-        ; else resolve to structure and pass key and value to it
-        Loop % (this["`r"]-1) 
-          pointer.="*"
-        return (new _Struct(pointer this["`t"],this["`r"]?NumGet(this[""],0,"PTR"):this[""]))[_key_]:=_value_
+        If (!this["`r"]&&_Struct.HasKey("_" this["`t"])){ ;???????????
+          if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t"] "," ){ 
+            this._SetCapacity("`v",(this["`f"]="CP0" ? 1 : 2)*(StrLen(_value_)+1)) ; +1 for string terminator
+            ,StrPut(_value_,this._GetAddress("`v"),this["`f"]) ; StrPut string to addr
+            ,NumPut(this._GetAddress("`v"),this[""]+sizeof(this["`t"])*(_key_-1),0,"PTR") ; NumPut string addr to key
+          } else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t"] "," ){
+            StrPut(SubStr(_value_,1,1),this[""]+sizeof(this["`t"])*(_key_-1),1,this["`f"]) ; StrPut character key
+          } else
+            NumPut(_value_,this[""]+sizeof(this["`t"])*(_key_-1),0,this["`n"]) ; NumPut new value to key
+          return _value_
+        } else if this["`r"] {
+          Loop % (this["`r"]-1) 
+            pointer.="*"
+          return (new _Struct(pointer this["`t"],this["`r"]?NumGet(this[""],0,"PTR"):this[""]))[_key_]:=_value_
+        }
       } else if this["`r" _key_]{ ; Pointer
         If opt ;same as above but our structure has items
           If opt is digit  
