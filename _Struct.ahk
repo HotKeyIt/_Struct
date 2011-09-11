@@ -343,6 +343,8 @@ Class _Struct {
       } else If _key_ is digit ; struct.1, struct.2.. was called
       {
         If _Struct.HasKey("_" this["`t"]){ ;???????????
+          If (opt="") ; address of item requested
+            return this[""]+sizeof(this["`t"])*(_key_-1)
           If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t"] "," )){  ; StrGet 1 character only
             Return StrGet(this[""]+sizeof(this["`t"])*(_key_-1),1,this["`f"])
           } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t"] "," ){ ; StrGet string
