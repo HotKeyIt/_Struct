@@ -185,6 +185,16 @@ Class _Struct {
           else
             this["`f"] := "CP0"
           this.base:=_base_
+          If (IsObject(_init_)||IsObject(_pointer_)){ ; Initialization of structures members, e.g. _Struct(_RECT,{left:10,right:20})
+            for _key_,_value_ in IsObject(_init_)?_init_:_pointer_
+            {
+              If !this["`r"] ; It is not a pointer, assign value
+                this[_key_] := _value_
+              else if (_value_<>"") ; It is not empty
+                if _value_ is digit ; It is a new pointer
+                  this[_key_][""]:=_value_
+            }
+          }
           Return this ;:= new _Struct(%_ArrType_%,_pointer_)   ;only Data type was supplied, object/structure has got no members/keys
         } else 
           _ArrName_:=_ArrType_,_ArrType_:="UInt"
@@ -266,7 +276,7 @@ Class _Struct {
       {
         If !this["`r" _key_] ; It is not a pointer, assign value
           this[_key_] := _value_
-        else if (_value_<>"") ; It is not empty or 
+        else if (_value_<>"") ; It is not empty
           if _value_ is digit ; It is a new pointer
             this[_key_][""]:=_value_
       }
