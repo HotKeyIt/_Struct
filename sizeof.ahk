@@ -1,3 +1,4 @@
+
 ;: Title: sizeof function by HotKeyIt
 ;
 
@@ -18,7 +19,7 @@
 ; Example:
 ;		file:
 
-sizeof(_TYPE_){
+sizeof(_TYPE_,parent_offset=0){
   ;Windows and AHK Data Types, used to find out the corresponding size
   static _types__:="
   (LTrim Join
@@ -48,24 +49,25 @@ sizeof(_TYPE_){
      ,SC_LOCK:" A_PtrSize ",SERVICE_STATUS_HANDLE:" A_PtrSize ",SIZE_T:" A_PtrSize ",UINT_PTR:" A_PtrSize ",ULONG_PTR:" A_PtrSize ",VOID:" A_PtrSize "
      )"
   
-  _offset_:=0           ; Init size/offset to 0
+  _offset_:=parent_offset           ; Init size/offset to 0 or parent_offset
   
   If IsObject(_TYPE_){    ; If structure object - check for offset in structure and return pointer + last offset + its data size
     for _union_,_struct_ in _TYPE_
     {
       If (InStr(_union_,"`b")=1){
         If (_offset_<_total_union_size_:=_struct_ + (_TYPE_["`r" SubStr(_union_,2)]?A_PtrSize:sizeof(_TYPE_["`t" SubStr(_union_,2)])) )
-          _offset_:=_total_union_size_
+          _offset_:=_total_union_size_,_align_total_:=_align_total_<_total_union_size_?_padding_:_total_union_size_
       } else if (IsObject(_struct_) && (_offset_<_total_union_size_:=_struct_[""]-_TYPE_[""]+sizeof(_struct_))){
-        _offset_:=_total_union_size_
+        _offset_:=_total_union_size_,_align_total_:=_align_total_<_total_union_size_?_padding_:_total_union_size_
       }
     }
     If _TYPE_["`t"] ; type only, structure has no members and its a pointer
         _offset_:=_TYPE_["`r"]?A_PtrSize:sizeof(_TYPE_["`t"])
+	_offset_+=A_PtrSize=8?Mod(_offset_,_align_total_):0
     Return _offset_  ;(_TYPE_["`t"]?4:0) ; if offset 0 and memory set,must be a pointer
   }
   
-  If (RegExMatch(_TYPE_,"^[\w\d.]+$") && !this.base.HasKey(_TYPE_)) ; structures name was supplied, resolve to global var and run again
+  If (RegExMatch(_TYPE_,"^[\w\d\._#@]+$") && !this.base.HasKey(_TYPE_)) ; structures name was supplied, resolve to global var and run again
       If InStr(_types_,"," _TYPE_ ":")
         Return SubStr(_types_,InStr(_types_,"," _TYPE_ ":") + 2 + StrLen(_TYPE_),1)
       else If InStr(_TYPE_,"."){ ;check for object that holds structure definition
@@ -87,15 +89,15 @@ sizeof(_TYPE_){
       {
         If RegExMatch(A_LoopField,"^\s*//") ;break on comments and continue main loop
             break
-        If (A_LoopField){
-            If (!_LF_ && _ArrType_:=RegExMatch(A_LoopField,"\w\s+\w"))
-              _LF_:=RegExReplace(A_LoopField,"\w\K\s+.*$")
-            If Instr(A_LoopField,"{"){
+        If (A_LoopField){ ; skip empty lines
+            If (!_LF_ && _ArrType_:=RegExMatch(A_LoopField,"[\w\d_#@]\s+[\w\d_#@]")) ; new line, find out data type and save key in _LF_ Data type will be added later
+              _LF_:=RegExReplace(A_LoopField,"[\w\d_#@]\K\s+.*$")
+            If Instr(A_LoopField,"{"){  ; Union, also check if it is a structure
               _union_++,_struct_.Insert(_union_,RegExMatch(A_LoopField,"i)^\s*struct\s*\{"))
-            } else If InStr(A_LoopField,"}")
+            } else If InStr(A_LoopField,"}") ; end of union/struct
               _offset_.="}"
-            else {
-              If _union_
+            else { ; not starting or ending struct or union so add definitions and apply Data Type.
+              If _union_ ; add { or struct{
                   Loop % _union_
                     _ArrName_.=(_struct_[A_Index]?"struct":"") "{"
               _offset_.=(_offset_ ? "," : "") _ArrName_ ((_ArrType_ && A_Index!=1)?(_LF_ " "):"") RegExReplace(A_LoopField,"\s+"," ")
@@ -105,7 +107,7 @@ sizeof(_TYPE_){
       }
     }
     _TYPE_:=_offset_
-    _offset_:=0           ; Init size/offset to 0
+    _offset_:=parent_offset           ; Init size/offset to 0 or parent_offset
   }
   
   ; Following keep track of union size/offset
@@ -113,7 +115,7 @@ sizeof(_TYPE_){
   _struct_:=[]              ; for each union level keep track if it is a structure (because here offset needs to increase
   _union_size_:=[]        ; keep track of highest member within the union or structure, used to calculate new offset after union
   _total_union_size_:=0   ; used in combination with above, each loop the total offset is updated if current data size is higher
-  
+  _align_total_:=0
   ; Parse given structure definition and calculate size
   ; Structures will be resolved by recrusive calls (a structure must be global)
   Loop,Parse,_TYPE_,`,`;,%A_Space%%A_Tab%`n`r
@@ -129,12 +131,12 @@ sizeof(_TYPE_){
     _LF_BKP_:=_LF_ ;to check for ending brackets = union,struct
     StringReplace,_LF_,_LF_,},,A
     
-    
     If InStr(_LF_,"*") ; It's a pointer, size will be always A_PtrSize
-      _offset_ += A_PtrSize
+      _offset_ += (A_PtrSize=8&&Mod(_offset_ + A_PtrSize,A_PtrSize)?A_PtrSize-Mod(_offset_ + A_PtrSize,A_PtrSize):0) + A_PtrSize
+      ,_align_total_:=_align_total_<A_PtrSize?A_PtrSize:_align_total_
     else {
       ; Split array type and optionally the size of array, e.g. "TCHAR chr[5]"
-      RegExMatch(_LF_,"^\s*(?<ArrType_>[\w\d.]+)?\s*(?<ArrName_>\w+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*$",_)
+      RegExMatch(_LF_,"^\s*(?<ArrType_>[\w\d\._#@]+)?\s*(?<ArrName_>[\w\d\._#@]+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*$",_)
       If (!_ArrName_ && !_ArrSize_ && !InStr( _types_  ,"," _ArrType_ ":"))
         _ArrName_:=_ArrType_,_ArrType_:="UInt"
       
@@ -147,25 +149,32 @@ sizeof(_TYPE_){
       }
       If (_idx_:=InStr( _types_  ,"," _ArrType_ ":")){ ; AHK or Windows data type
         ; find out the size in _types_ and add to total size
-        _offset_ += SubStr( _types_  , _idx_+StrLen(_ArrType_)+2 , 1 ) * (_ArrSize_?_ArrSize_:1)
-      } else ; resolve structure
+        _padding_:=SubStr( _types_  , _idx_+StrLen(_ArrType_)+2 , 1 )
+		_offset_ += (A_PtrSize=8&&Mod(_offset_ + _padding_,_padding_)?_padding_-Mod(_offset_ + _padding_,_padding_):0) + (_padding_ * (_ArrSize_?_ArrSize_:1))
+        _align_total_:=_align_total_<_padding_?_padding_:_align_total_
+      } else { ; resolve structure
+		If (A_PtrSize=8) ; align current offset
+			_offset_+=sizeof(_defobj_?_defobj_:%_ArrType_%,_offset_)-_offset_-sizeof(_defobj_?_defobj_:%_ArrType_%)
         _offset_ += sizeof(_defobj_?_defobj_:%_ArrType_%) * (_ArrSize_?_ArrSize_:1) ; %Array1% will resolve to global variable
+	  }
     }
-    If _union_.MaxIndex()
-          _union_size_[_union_.MaxIndex()]:=(_offset_ - _union_[_union_.MaxIndex()]>_union_size_[_union_.MaxIndex()])
-                                            ?(_offset_ - _union_[_union_.MaxIndex()]):_union_size_[_union_.MaxIndex()]
-    If (_union_.MaxIndex() && !_struct_[_struct_.MaxIndex()])
-      _offset_:=_union_[_union_.MaxIndex()]
+	; It's a union or struct, check if new member is higher then previous members
+    If (_uix_:=_union_.MaxIndex())
+          _union_size_[_uix_]:=(_offset_ - _union_[_uix_]>_union_size_[_uix_])
+                                            ?(_offset_ - _union_[_uix_]):_union_size_[_uix_]
+    ; It's a union and not struct
+    If (_uix_ && !_struct_[_struct_.MaxIndex()])
+      _offset_:=_union_[_uix_]
       
     ; Check for ENDING union and reset offset and union helpers
     While (SubStr(_LF_BKP_,0)="}"){
-      If !_union_.MaxIndex(){
+      If !(_uix_:=_union_.MaxIndex()){
         MsgBox Incorrect structure, missing opening braket {`nProgram will exit now `n%_TYPE_%
         ExitApp
       }
-      _offset_:=_union_[_union_.MaxIndex()] ; reset offset because we left a union or structure
+      _offset_:=_union_[_uix_] ; reset offset because we left a union or structure
       ; Increase total size of union/structure if necessary
-      _total_union_size_ := _union_size_[_union_.MaxIndex()]>_total_union_size_?_union_size_[_union_.MaxIndex()]:_total_union_size_
+      _total_union_size_ := _union_size_[_uix_]>_total_union_size_?_union_size_[_uix_]:_total_union_size_
       ,_union_.Remove() ; remove latest items
       ,_struct_.Remove()
       ,_union_size_.Remove()
@@ -176,5 +185,6 @@ sizeof(_TYPE_){
       }
     }
   }
+  _offset_+=A_PtrSize=8?Mod(_offset_,_align_total_):0
   Return _offset_
 }

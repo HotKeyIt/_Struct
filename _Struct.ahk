@@ -1,4 +1,5 @@
-﻿;: Title: Class _Struct + sizeof() by HotKeyIt
+﻿
+;: Title: Class _Struct + sizeof() by HotKeyIt
 ;
 
 ; Function: _Struct
@@ -89,7 +90,7 @@ Class _Struct {
     global _Struct
     static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW}
 
-    If (RegExMatch(_TYPE_,"^[\w\d\.]+$") && !this.base.HasKey(_TYPE_)) ; structures name was supplied, resolve to global var and run again
+    If (RegExMatch(_TYPE_,"^[\w\d\._#@]+$") && !_Struct.HasKey(_TYPE_)) ; structures name was supplied, resolve to global var and run again
       If InStr(_TYPE_,"."){ ;check for object that holds structure definition
         Loop,Parse,_TYPE_,.
           If A_Index=1
@@ -118,8 +119,8 @@ Class _Struct {
           If RegExMatch(A_LoopField,"^\s*//") ;break on comments and continue main loop
               break
           If (A_LoopField){ ; skip empty lines
-              If (!_LF_ && _ArrType_:=RegExMatch(A_LoopField,"\w\s+\w")) ; new line, find out data type and save key in _LF_ Data type will be added later
-                _LF_:=RegExReplace(A_LoopField,"\w\K\s+.*$")
+              If (!_LF_ && _ArrType_:=RegExMatch(A_LoopField,"[\w\d_#@]\s+[\w\d_#@]")) ; new line, find out data type and save key in _LF_ Data type will be added later
+                _LF_:=RegExReplace(A_LoopField,"[\w\d_#@]\K\s+.*$")
               If Instr(A_LoopField,"{"){ ; Union, also check if it is a structure
                 _union_++,_struct_.Insert(_union_,RegExMatch(A_LoopField,"i)^\s*struct\s*\{"))
               } else If InStr(A_LoopField,"}") ; end of union/struct
@@ -142,7 +143,8 @@ Class _Struct {
     _struct_:=[]                ; for each union level keep track if it is a structure (because here offset needs to increase
     _union_size_:=[]          ; keep track of highest member within the union or structure, used to calculate new offset after union
     _total_union_size_:=0     ; used in combination with above, each loop the total offset is updated if current data size is higher
-    
+    _align_total_:=0			; used to calculate alignment for total size of structure
+	
     this["`t"]:=0,this["`r"]:=0 ; will identify a Structure Pointer without members
     
     ; Parse given structure definition and create struct members
@@ -169,13 +171,12 @@ Class _Struct {
       }
 
       ; Split off data type, name and size (only data type is mandatory)
-      RegExMatch(_LF_,"^\s*(?<ArrType_>[\w\d\.]+)?\s*(?<ArrName_>\w+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*\}*\s*$",_)
-
+      RegExMatch(_LF_,"^\s*(?<ArrType_>[\w\d\._#@]+)?\s*(?<ArrName_>[\w\d_#@]+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*\}*\s*$",_)
       If (!_ArrName_ && !_ArrSize_){
         ; If (_ArrType_=_TYPE_ || (_ArrType_ "*") =_TYPE_ || ("*" _ArrType_=_TYPE_)) {
         If RegExMatch(_TYPE_,"^\**" _ArrType_ "\**$"){
           this["`t"]:=_ArrType_
-          ,this["`n"]:=_IsPtr_?"PTR":this.base.HasKey("_" _ArrType_)?this.base["_" _ArrType_]:"PTR"
+          ,this["`n"]:=_IsPtr_?"PTR":_Struct.HasKey("_" _ArrType_)?_Struct["_" _ArrType_]:"PTR"
           ,this["`r"]:=_IsPtr_
           ,this["`b"]:=0
           If _ArrType_ in LPTSTR,LPCTSTR,TCHAR
@@ -215,22 +216,27 @@ Class _Struct {
         If RegExMatch(_TYPE_,"^\s*" _ArrType_ "\s*\[\s*" _ArrSize_ "\s*\]\s*$")
           return this:=new _struct(_new_struct_,pointer)
         else {
-          this.Insert(_ArrName_,new _Struct(_new_struct_,this[""] + _offset_))     ; Create new structure and assign to _ArrName_
-          _offset_+=sizeof(_new_struct_)       ; update offset
+          If (A_PtrSize=8 && _Struct.HasKey(_ArrType_))
+			_offset_+=Mod(_offset_,_Struct[_ArrType_])=0?0:_Struct[_ArrType_]-Mod(_offset_,_Struct[_ArrType_])
+		  this.Insert(_ArrName_,new _Struct(_new_struct_,this[""] + _offset_))     ; Create new structure and assign to _ArrName_
+		  _offset_+=sizeof(_new_struct_)       ; update offset
         }
         Continue
-      } else If (!_IsPtr_ && !_Struct.HasKey(_ArrType_) && !_defobj_ && !%_ArrType_%) {     ; Data type not found, also not structure was found
-          ListVars
+      } else If (!_IsPtr_ && !_Struct.HasKey(_ArrType_) && !_defobj_ && !%_ArrType_%) {     ; Data type not found, also no structure was found
           MsgBox Structure %_ArrType_% not found, program will exit now         ; Display error message and exit app
           ExitApp
       } else if (!_IsPtr_ && !_Struct.HasKey(_ArrType_)){  ; _ArrType_ not found resolve to global variable (must contain struct definition)
-          this.Insert(_ArrName_, new _Struct(_defobj_?_defobj_:%_ArrType_%,this[""] + _offset_,1))
+          If (A_PtrSize=8)
+			_offset_+=sizeof(_defobj_?_defobj_:%_ArrType_%,_offset_)-_offset_-sizeof(_defobj_?_defobj_:%_ArrType_%)
+		  this.Insert(_ArrName_, new _Struct(_defobj_?_defobj_:%_ArrType_%,this[""] + _offset_,1))
           _offset_+=sizeof(_defobj_?_defobj_:%_ArrType_%) ; move offset
           Continue
       } else {
         this["`t" _ArrName_] := _ArrType_
-        ,this["`n" _ArrName_]:=_IsPtr_?"PTR":this.base.HasKey("_" _ArrType_)?this.base["_" _ArrType_]:_ArrType_
-        ,this["`b" _ArrName_] := _offset_ ; offset and pointer identifier for __GET, __SET
+        ,this["`n" _ArrName_]:=_IsPtr_?"PTR":_Struct.HasKey("_" _ArrType_)?_Struct["_" _ArrType_]:_ArrType_
+        If (A_PtrSize=8 && (_IsPtr_ || _Struct.HasKey(_ArrType_)))
+			_offset_+=Mod(_offset_,(_IsPtr_?A_PtrSize:_Struct[_ArrType_]))=0?0:(_IsPtr_?A_PtrSize:_Struct[_ArrType_])-Mod(_offset_,(_IsPtr_?A_PtrSize:_Struct[_ArrType_]))
+		this["`b" _ArrName_] := _offset_ ; offset and pointer identifier for __GET, __SET
         ,this["`r" _ArrName_] := _IsPtr_ ; reqired for __GET, __SET
         
         ; Set Encoding format
@@ -243,8 +249,8 @@ Class _Struct {
         
         ; update current union size
         If _union_.MaxIndex()
-          _union_size_[_union_.MaxIndex()]:=(_offset_ + this.base[this["`n" _ArrName_]] - _union_[_union_.MaxIndex()]>_union_size_[_union_.MaxIndex()])
-                                            ?(_offset_ + this.base[this["`n" _ArrName_]] - _union_[_union_.MaxIndex()]):_union_size_[_union_.MaxIndex()]
+          _union_size_[_union_.MaxIndex()]:=(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_union_.MaxIndex()]>_union_size_[_union_.MaxIndex()])
+                                            ?(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_union_.MaxIndex()]):_union_size_[_union_.MaxIndex()]
         ; if not a union or a union + structure then offset must be moved (when structure offset will be reset below
         If (!_union_.MaxIndex()||_struct_[_struct_.MaxIndex()])
           _offset_+=_IsPtr_?A_PtrSize:_Struct[_ArrType_]
@@ -270,7 +276,7 @@ Class _Struct {
         }
       }
     }
-    this.base:=_base_ ; apply new base which uses below functions and uses ___GET for __GET and ___SET for __SET
+	this.base:=_base_ ; apply new base which uses below functions and uses ___GET for __GET and ___SET for __SET
     If (IsObject(_init_)||IsObject(_pointer_)){ ; Initialization of structures members, e.g. _Struct(_RECT,{left:10,right:20})
       for _key_,_value_ in IsObject(_init_)?_init_:_pointer_
       {
