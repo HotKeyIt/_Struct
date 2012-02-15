@@ -1,7 +1,4 @@
-﻿
-;: Title: Class _Struct + sizeof() by HotKeyIt
-;
-
+﻿;~ #include <MemORYMODULE>
 ; Function: _Struct
 ; Description:
 ;      _Struct is based on AHK_L Objects and supports both, ANSI and UNICODE version, so to use it you will require <a href=http://www.autohotkey.com/forum/viewtopic.php?t=43049>Lexikos AutoHotkey_L.exe</a> or other versions based on it that supports objects.<br><br>new _Struct is used to create new structure. You can create predefined structures that are saved as global variables or pass you own structure definition.<br>_Struct supportes structure in structure as well as Arrays of structures and Vectors.<br>Visit <a href=http://www.autohotkey.com/forum/viewtopic.php?t=43049>_Struct at AutoHotkey</a> forum, any feedback is welcome.
@@ -76,6 +73,37 @@ Class _Struct {
     ,_PVOID:="UPTR",_PWCHAR:="UPTR",_PWORD:="UPTR",_PWSTR:="UPTR",_SC_HANDLE:="UPTR",_SC_LOCK:="UPTR",_SERVICE_STATUS_HANDLE:="UPTR"
     ,_SIZE_T:="UPTR",_UINT_PTR:="UPTR",_ULONG_PTR:="UPTR",_ATOM:="Ushort",_LANGID:="Ushort",_WCHAR:="Ushort",_WORD:="UShort"
     
+  ; Following is used internally only to simplify setting field helpers
+  ; the corresponding key can be set to invalid type (for string integer and vice versa) to set default if necessary, e.g. ___InitField(N,"")
+  ___InitField(_this,N,offset=" ",encoding=0,AHKType=0,isptr=" ",type=0,arrsize=0,memory=0){ ; N = Name of field
+    static _prefixes_:={offset:"`b",isptr:"`r",AHKType:"`n",type:"`t",encoding:"`f",memory:"`v",arrsize:" "}
+          ,_testtype_:={offset:"integer",isptr:"integer",AHKType:"string",type:"string",encoding:"string",arrsize:"integer"}
+          ,_default_:={offset:0,isptr:0,AHKType:"UInt",type:"UINT",encoding:"CP0",memory:"",arrsize:1}
+    for _key_,_value_ in _prefixes_
+    {
+      _typevalid_:=0
+      If (_testtype_[_key_]="Integer"){
+        If %_key_% is integer
+          useDefault:=1,_typevalid_:=1
+        else if !_this.HasKey(_value_ N)
+          useDefault:=1
+      } else {
+        If %_key_% is not integer
+          useDefault:=1,_typevalid_:=1
+        else if !_this.HasKey(_value_ N)
+          useDefault:=1
+      }
+      If (useDefault) ; item does not exist or user supplied a valid type
+        If (_key_="encoding")
+          _this[_value_ N]:=_typevalid_?(InStr(",LPTSTR,LPCTSTR,TCHAR,","," %_key_% ",")?(A_IsUnicode?"UTF-16":"CP0")
+                                        :InStr(",LPWSTR,LPCWSTR,WCHAR,","," %_key_% ",")?"UTF-16":"CP0")
+                                      :_default_[_key_]
+        else {
+          _this[_value_ N]:=_typevalid_?%_key_%:_default_[_key_]
+         }
+    }
+  }
+  
   ; Struct Contstructor
   ; Memory, offset and definitions are saved in following character + given key/name
   ;   `a = Allocated Memory
@@ -84,29 +112,27 @@ Class _Struct {
   ;   `n = New data type (AHK data type)
   ;   `r = Is Pointer (requred for __GET and __SET)
   ;   `t = Type (data type, also when it is name of a Structure it is used to resolve structure pointers dynamically
-  ;   `v = Memory used to save string
-  
+  ;   `v = Memory used to save string and pointer memory
   __NEW(_TYPE_,_pointer_=0,_init_=0){
-    global _Struct
-    static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW}
-
-    If (RegExMatch(_TYPE_,"^[\w\d\._#@]+$") && !_Struct.HasKey(_TYPE_)) ; structures name was supplied, resolve to global var and run again
+    static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW
+          ,IsPointer:_Struct.IsPointer,Offset:_Struct.Offset,Type:_Struct.Type,AHKType:_Struct.AHKType,Encoding:_Struct.Encoding
+          ,Capacity:_Struct.Capacity,Alloc:_Struct.Alloc,Size:_Struct.Size,SizeT:_Struct.SizeT}
+    If (RegExMatch(_TYPE_,"^[\w\d\._]+$") && !_Struct.HasKey(_TYPE_)){ ; structures name was supplied, resolve to global var and run again
       If InStr(_TYPE_,"."){ ;check for object that holds structure definition
         Loop,Parse,_TYPE_,.
           If A_Index=1
             _defobj_:=%A_LoopField%
           else _defobj_:=_defobj_[A_LoopField]
         _TYPE_:=_defobj_
-      } else _TYPE_:=%_TYPE_%
-    
+      } else _TYPE_:=%_TYPE_%,_defobj_:=""
+    } else _defobj_:=""
     ; If a pointer is supplied, save it in key [""] else reserve and zero-fill memory + set pointer in key [""]
     If (_pointer_ && !IsObject(_pointer_))
       this[""] := _pointer_,this["`a"]:=0
     else
       this._SetCapacity("`a",_StructSize_:=sizeof(_TYPE_)) ; Set Capacity in key ["`a"]
       ,this[""]:=this._GetAddress("`a") ; Save pointer in key [""]
-      ,DllCall("RtlFillMemory","UPTR",this[""],"UInt",_StructSize_,"UChar",0) ; zero-fill memory
-    
+      ,DllCall("RtlZeroMemory","UPTR",this[""],"UInt",_StructSize_) ; zero-fill memory
     ; C/C++ style structure definition, convert it
     If InStr(_TYPE_,"`n") {
       _struct_:=[] ; keep track of structures (union is just removed because {} = union, struct{} = struct
@@ -114,13 +140,13 @@ Class _Struct {
       Loop,Parse,_TYPE_,`n,`r`t%A_Space%%A_Tab% ; Parse each line
       {
         _LF_:=""
-        Loop,parse,A_LoopField,`,`;,`t%A_Space%%A_Tab% ; Parse each item
+        Loop,Parse,A_LoopField,`,`;,`t%A_Space%%A_Tab% ; Parse each item
         {
           If RegExMatch(A_LoopField,"^\s*//") ;break on comments and continue main loop
               break
           If (A_LoopField){ ; skip empty lines
-              If (!_LF_ && _ArrType_:=RegExMatch(A_LoopField,"[\w\d_#@]\s+[\w\d_#@]")) ; new line, find out data type and save key in _LF_ Data type will be added later
-                _LF_:=RegExReplace(A_LoopField,"[\w\d_#@]\K\s+.*$")
+              If (!_LF_ && _ArrType_:=RegExMatch(A_LoopField,"[\w\d_]\s+[\w\d_]")) ; new line, find out data type and save key in _LF_ Data type will be added later
+                _LF_:=RegExReplace(A_LoopField,"[\w\d_]\K\s+.*$")
               If Instr(A_LoopField,"{"){ ; Union, also check if it is a structure
                 _union_++,_struct_.Insert(_union_,RegExMatch(A_LoopField,"i)^\s*struct\s*\{"))
               } else If InStr(A_LoopField,"}") ; end of union/struct
@@ -146,20 +172,20 @@ Class _Struct {
     _align_total_:=0			; used to calculate alignment for total size of structure
 	
     this["`t"]:=0,this["`r"]:=0 ; will identify a Structure Pointer without members
-    
+
     ; Parse given structure definition and create struct members
     ; User structures will be resolved by recrusive calls (!!! a structure must be a global variable)
     Loop,Parse,_TYPE_,`,`;,%A_Space%%A_Tab%`n`r
     {
-      If (""=_LF_ := A_LoopField)
+      If ("" = _LF_ := A_LoopField)
         Continue
       _IsPtr_:=0
       ; Check for STARTING union and set union helpers
-      While (RegExMatch(_LF_,"i)(struct|union)?\s*\{\K"))
+      While (_match_:=RegExMatch(_LF_,"i)^\s*(struct|union)?\s*\{\K"))
         _union_.Insert(_offset_)
         ,_union_size_.Insert(0)
-        ,_struct_.Insert(RegExMatch(_LF_,"i)struct\s*\{")?1:0)
-        ,_LF_:=SubStr(_LF_,RegExMatch(_LF_,"i)(struct|union)?\s*\{\K"))
+        ,_struct_.Insert(RegExMatch(_LF_,"i)^\s*struct\s*\{")?1:0)
+        ,_LF_:=SubStr(_LF_,_match_)
        
       _LF_BKP_:=_LF_ ;to check for ending brackets = union,struct
       StringReplace,_LF_,_LF_,},,A ;remove all closing brackets (these will be checked later)
@@ -171,20 +197,11 @@ Class _Struct {
       }
 
       ; Split off data type, name and size (only data type is mandatory)
-      RegExMatch(_LF_,"^\s*(?<ArrType_>[\w\d\._#@]+)?\s*(?<ArrName_>[\w\d_#@]+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*\}*\s*$",_)
+      RegExMatch(_LF_,"^\s*(?<ArrType_>[\w\d\._]+)?\s*(?<ArrName_>[\w\d_]+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*\}*\s*$",_)
       If (!_ArrName_ && !_ArrSize_){
         ; If (_ArrType_=_TYPE_ || (_ArrType_ "*") =_TYPE_ || ("*" _ArrType_=_TYPE_)) {
         If RegExMatch(_TYPE_,"^\**" _ArrType_ "\**$"){
-          this["`t"]:=_ArrType_
-          ,this["`n"]:=_IsPtr_?"PTR":_Struct.HasKey("_" _ArrType_)?_Struct["_" _ArrType_]:"PTR"
-          ,this["`r"]:=_IsPtr_
-          ,this["`b"]:=0
-          If _ArrType_ in LPTSTR,LPCTSTR,TCHAR
-            this["`f"] := A_IsUnicode ? "UTF-16" : "CP0"
-          else if _ArrType_ in LPWSTR,LPCWSTR,WCHAR
-            this["`f"] := "UTF-16"
-          else
-            this["`f"] := "CP0"
+          _Struct.___InitField(this,"",0,_ArrType_,_IsPtr_?"PTR":_Struct.HasKey("_" _ArrType_)?_Struct["_" _ArrType_]:"PTR",_IsPtr_,_ArrType_)
           this.base:=_base_
           If (IsObject(_init_)||IsObject(_pointer_)){ ; Initialization of structures members, e.g. _Struct(_RECT,{left:10,right:20})
             for _key_,_value_ in IsObject(_init_)?_init_:_pointer_
@@ -192,87 +209,60 @@ Class _Struct {
               If !this["`r"] ; It is not a pointer, assign value
                 this[_key_] := _value_
               else if (_value_<>"") ; It is not empty
-                if _value_ is digit ; It is a new pointer
+                If _value_ is integer ; It is a new pointer
                   this[_key_][""]:=_value_
             }
           }
           Return this ;:= new _Struct(%_ArrType_%,_pointer_)   ;only Data type was supplied, object/structure has got no members/keys
-        } else 
+        } else
           _ArrName_:=_ArrType_,_ArrType_:="UInt"
       }
-      If InStr(this["`t" _key_],"."){ ;check for object that holds structure definition
-        _ArrType_:=this["`t" _key_]
+      If InStr(_ArrType_,"."){ ;check for object that holds structure definition
         Loop,Parse,_ArrType_,.
           If A_Index=1
             _defobj_:=%A_LoopField%
           else _defobj_:=_defobj_[A_LoopField]
       }
-      ; Set structure keys.
-      ; If type is not a pointer and not a Windows or AHK data type, it must be a global variable containing structure definition
-      If (!_IsPtr_ && _ArrSize_) {  ; Array size supplied, e.g. TCHAR chr[5]
-        _new_struct_:=""            ; concatenate new structure definition and save it as object in _ArrName_
-        Loop % _ArrSize_            ; the new structure/object will contain digit keys and usual members
-          _new_struct_ .= (_new_struct_?",":"") _ArrType_ " " A_Index
-        If RegExMatch(_TYPE_,"^\s*" _ArrType_ "\s*\[\s*" _ArrSize_ "\s*\]\s*$")
-          return this:=new _struct(_new_struct_,pointer)
-        else {
-          If (A_PtrSize=8 && _Struct.HasKey(_ArrType_))
-			_offset_+=Mod(_offset_,_Struct[_ArrType_])=0?0:_Struct[_ArrType_]-Mod(_offset_,_Struct[_ArrType_])
-		  this.Insert(_ArrName_,new _Struct(_new_struct_,this[""] + _offset_))     ; Create new structure and assign to _ArrName_
-		  _offset_+=sizeof(_new_struct_)       ; update offset
-        }
-        Continue
-      } else If (!_IsPtr_ && !_Struct.HasKey(_ArrType_) && !_defobj_ && !%_ArrType_%) {     ; Data type not found, also no structure was found
-          MsgBox Structure %_ArrType_% not found, program will exit now         ; Display error message and exit app
-          ExitApp
-      } else if (!_IsPtr_ && !_Struct.HasKey(_ArrType_)){  ; _ArrType_ not found resolve to global variable (must contain struct definition)
+      if (!_IsPtr_ && !_Struct.HasKey(_ArrType_)){  ; _ArrType_ not found resolve to global variable (must contain struct definition)
           If (A_PtrSize=8)
 			_offset_+=sizeof(_defobj_?_defobj_:%_ArrType_%,_offset_)-_offset_-sizeof(_defobj_?_defobj_:%_ArrType_%)
-		  this.Insert(_ArrName_, new _Struct(_defobj_?_defobj_:%_ArrType_%,this[""] + _offset_,1))
-          _offset_+=sizeof(_defobj_?_defobj_:%_ArrType_%) ; move offset
-          Continue
+          _Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,0,0,_ArrType_,_ArrSize_)
+          ; update current union size
+        If _union_.MaxIndex()
+          _union_size_[_union_.MaxIndex()]:=(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_union_.MaxIndex()]>_union_size_[_union_.MaxIndex()])
+                                            ?(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_union_.MaxIndex()]):_union_size_[_union_.MaxIndex()]
+        ; if not a union or a union + structure then offset must be moved (when structure offset will be reset below
+        If (!_union_.MaxIndex()||_struct_[_struct_.MaxIndex()])
+          _offset_+=this[" " _ArrName_]*sizeof(_defobj_?_defobj_:%_ArrType_%) ; move offset
+          ;Continue
+          
       } else {
-        this["`t" _ArrName_] := _ArrType_
-        ,this["`n" _ArrName_]:=_IsPtr_?"PTR":_Struct.HasKey("_" _ArrType_)?_Struct["_" _ArrType_]:_ArrType_
         If (A_PtrSize=8 && (_IsPtr_ || _Struct.HasKey(_ArrType_)))
-			_offset_+=Mod(_offset_,(_IsPtr_?A_PtrSize:_Struct[_ArrType_]))=0?0:(_IsPtr_?A_PtrSize:_Struct[_ArrType_])-Mod(_offset_,(_IsPtr_?A_PtrSize:_Struct[_ArrType_]))
-		this["`b" _ArrName_] := _offset_ ; offset and pointer identifier for __GET, __SET
-        ,this["`r" _ArrName_] := _IsPtr_ ; reqired for __GET, __SET
-        
-        ; Set Encoding format
-        If _ArrType_ in LPTSTR,LPCTSTR,TCHAR
-          this["`f" _ArrName_] := A_IsUnicode ? "UTF-16" : "CP0"
-        else if _ArrType_ in LPWSTR,LPCWSTR,WCHAR
-          this["`f" _ArrName_] := "UTF-16"
-        else
-          this["`f" _ArrName_] := "CP0"
-        
+			_offset_+=Mod(_offset_,(_IsPtr_?A_PtrSize:_Struct[_ArrType_]))=0
+                      ?0:(_IsPtr_?A_PtrSize:_Struct[_ArrType_])-Mod(_offset_,(_IsPtr_?A_PtrSize
+                      :_Struct[_ArrType_]))
+        _Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,_IsPtr_?"PTR":_Struct.HasKey(_ArrType_)?_Struct["_" _ArrType_]:_ArrType_,_IsPtr_,_ArrType_,_ArrSize_)
         ; update current union size
         If _union_.MaxIndex()
           _union_size_[_union_.MaxIndex()]:=(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_union_.MaxIndex()]>_union_size_[_union_.MaxIndex()])
                                             ?(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_union_.MaxIndex()]):_union_size_[_union_.MaxIndex()]
         ; if not a union or a union + structure then offset must be moved (when structure offset will be reset below
         If (!_union_.MaxIndex()||_struct_[_struct_.MaxIndex()])
-          _offset_+=_IsPtr_?A_PtrSize:_Struct[_ArrType_]
+          _offset_+=_IsPtr_?A_PtrSize:(_Struct.HasKey(_ArrType_)?_Struct[_ArrType_]:%_ArrType_%)*this[" " _ArrName_]
       }
       
       
       ; Check for ENDING union and reset offset and union helpers
       While (SubStr(_LF_BKP_,0)="}"){
         If !_union_.MaxIndex(){
-          MsgBox Incorrect structure, missing opening braket {`nProgram will exit now `n%_TYPE_%
+          MsgBox,0, Incorrect structure, missing opening braket {`nProgram will exit now `n%_TYPE_%
           ExitApp
-        }
-        ; Increase total size of union/structure if necessary
+        } ; Increase total size of union/structure if necessary
         _offset_:=_union_[_union_.MaxIndex()] ; reset offset because we left a union or structure
-        _total_union_size_ := _union_size_[_union_.MaxIndex()]>_total_union_size_?_union_size_[_union_.MaxIndex()]:_total_union_size_
-        ,_union_.Remove() ; remove latest items
-        ,_struct_.Remove()
-        ,_union_size_.Remove()
-        ,_LF_BKP_:=SubStr(_LF_BKP_,1,StrLen(_LF_BKP_)-1)
+        ,_total_union_size_ := _union_size_[_union_.MaxIndex()]>_total_union_size_?_union_size_[_union_.MaxIndex()]:_total_union_size_
+        _union_._Remove(),_struct_._Remove(),_union_size_._Remove(),_LF_BKP_:=SubStr(_LF_BKP_,1,StrLen(_LF_BKP_)-1) ; remove latest items
         If !_union_.MaxIndex(){ ; leaving top union, add offset
-          _offset_+=_total_union_size_
-          _total_union_size_:=0
+          _offset_+=_total_union_size_,_total_union_size_:=0
         }
       }
     }
@@ -283,13 +273,61 @@ Class _Struct {
         If !this["`r" _key_] ; It is not a pointer, assign value
           this[_key_] := _value_
         else if (_value_<>"") ; It is not empty
-          if _value_ is digit ; It is a new pointer
+          if _value_ is integer ; It is a new pointer
             this[_key_][""]:=_value_
       }
     }
     Return this
   }
-  
+  SizeT(_key_=""){
+    return sizeof(this["`t" _key_])
+  }
+  Size(){
+    return sizeof(this)
+  }
+  IsPointer(_key_=""){
+    return this["`r" _key_] 
+  }
+  Type(_key_=""){
+    return this["`t" _key_] 
+  }
+  AHKType(_key_=""){
+    return this["`n" _key_] 
+  }
+  Offset(_key_=""){
+    return this["`b" _key_] 
+  }
+  Encoding(_key_=""){
+    return this["`b" _key_] 
+  }
+  Capacity(_key_=""){
+    return this._GetCapacity("`v" _key_)
+  }
+  Alloc(_key_="",size="",ptrsize=0){
+    If _key_ is integer
+      ptrsize:=size,size:=_key_,_key_:=""
+   If size is integer
+      SizeIsInt:=1
+    If ptrsize {
+      If (this._SetCapacity("`v" _key_,!SizeIsInt?A_PtrSize+ptrsize:size + (size//A_PtrSize)*ptrsize)="")
+        MsgBox % "Memory for pointer ." _key_ ". of size " (SizeIsInt?size:A_PtrSize) " could not be set!"
+      else {
+        If this["`r" _key_]
+          NumPut(ptr:=this._GetAddress("`v" _key_),this[""] + this["`b" _key_],"PTR")
+        else this[]:=ptr:=this._GetAddress("`v" _key_)
+        ptrs:=ptr+(size?size:A_PtrSize)
+        DllCall("RtlZeroMemory","UPTR",ptr,"UInt",this._GetCapacity("`v" _key_))
+        Loop % size?(size//A_PtrSize):1
+          NumPut(ptrs+(A_Index-1)*ptrsize,ptr+(A_Index-1)*A_PtrSize,"PTR")
+      }
+    } else {
+      If (this._SetCapacity("`v" _key_,SizeIsInt?size:A_PtrSize)=""){
+        MsgBox % "Memory for pointer ." _key_ ". of size " (SizeIsInt?size:A_PtrSize) " could not be set!"
+      } else
+          NumPut(ptr:=this._GetAddress("`v" _key_),this[""] + this["`b" _key_],"PTR"),DllCall("RtlZeroMemory","UPTR",ptr,"UInt",SizeIsInt?size:A_PtrSize)
+    }
+    return ptr
+  }
   ___NEW(init*){
     this:=this.base
     new := this.__Clone(1) ;clone structure and keep pointer (1), it will be changed below
@@ -300,162 +338,169 @@ Class _Struct {
     else
       new._SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
       ,new[""]:=new._GetAddress("`a") ; Save pointer in key [""]
-      ,DllCall("RtlFillMemory","UPTR",new[""],"UInt",_StructSize_,"UChar",0) ; zero-fill memory
+      ,DllCall("RtlZeroMemory","UPTR",new[""],"UInt",_StructSize_) ; zero-fill memory
     If (IsObject(init.1)||IsObject(init.2))
       for _key_,_value_ in IsObject(init.1)?init.1:init.2
           new[_key_] := _value_
     return new
   }
-  ___SETPTR(_newPTR_="",_object_=0){ ;only called internally to reset pointers in structure
-    If !_object_ ; called not recrusive so use this (main structure)
-      _obj_:=this
-    else _obj_:=_object_
-    for _key_,_value_ in _obj_ ; Loop trough structure to check for structures
-      If IsObject(_value_)
-        this.__SETPTR(_newPTR_  + (_value_[""] - this[""]),_value_) ; _value_ contains an object/structure, call recrusive so it gets changed below
-      else if (_key_="" && _obj_!=this){ ; do not apply main pointer yet because it is used to calculate offset
-        _obj_[""]:=_newPTR_ ; assign new pointer.
-      }
-    If !_object_ ; In the end, apply main pointer
-      this[""]:=_newPTR_
-  }
   
   ; Clone structure and move pointer for new structure
   ___Clone(offset){
-    global _Struct
-    static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW}
+    static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW
+          ,IsPointer:_Struct.IsPointer,Offset:_Struct.Offset,Type:_Struct.Type,AHKType:_Struct.AHKType,Encoding:_Struct.Encoding
+          ,Capacity:_Struct.Capacity,Alloc:_Struct.Alloc,Size:_Struct.Size,SizeT:_Struct.SizeT}
+    If offset=1
+      return this
     new:={} ; new structure object
-    for k,v in this ; copy all values/objects
-      if IsObject(v) ; its an object (structure in structure)
-        v.__Clone(offset) ; call function recursively
-      else new[k]:=v ; add key to new object and assign value
+    for _key_,_value_ in this ; copy all values/objects
+      If (_key_!="`a")
+        new[_key_]:=_value_ ; add key to new object and assign value
+    new._SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
+    ,new[""]:=new._GetAddress("`a") ; Save pointer in key [""]
+    ,DllCall("RtlZeroMemory","UPTR",new[""],"UInt",_StructSize_) ; zero-fill memory
     If this["`r"]{ ; its a pointer so we need too move internal memory
-      new._SetCapacity("`a",sizeof(this)),new[""]:=new._GetAddress("`a") ;assign new memory to structure
-      If (this["`r"]=1) { ; it is a pointer so read next pointer in structure and write to new structure
-        NumPut(NumGet(this[""],0,"PTR")+A_PtrSize*(offset-1),new[""],0,"Ptr")
-      } else { ; it is a pointer to pointer so keep pointer and move pointer of pointer ...
-        pointer:=NumGet(this[""],0,"PTR"),newPointer:=new[""] ; initial pointers
-        Loop % this["`r"]-1 ; exclude last/deepest pointer, the one we need to move
-          NumPut(pointer:=NumGet(pointer,0,"PTR"),newPointer:=NumGet(newPointer,0,"PTR"),0,"Ptr")
-        ; Last/deepest pointer, move it
-        NumPut(NumGet(pointer,0,"PTR")+sizeof(this)*(offset-1),NumGet(newPointer,0,"PTR"),0,"Ptr")
-      }
+      NumPut(NumGet(this[""],"PTR")+A_PtrSize*(offset-1),new[""],"Ptr")
       new.base:=_base_ ;assign base of _Struct
     } else ; do not use internal memory, simply assign new pointer to new structure
       new.base:=_base_,new[]:=this[""]+sizeof(this)*(offset-1)
     return new ; return new object
   }
-  ___GET(_key_="",opt="~"){
-    global _Struct          ; Used for dynamic structure creation
+  ___GET(_key_="",p*){
     If (_key_="")           ; Key was not given so structure[] has been called, return pointer to structure
       Return this[""]
-    else If this["`t"]{ ; structure without members (pure pointer)
-      If this["`r"]{ ;similar as below but always creates new structure
-        Loop % (this["`r"]-1) 
-          pointer.="*"
-        if (opt="~")
-          Return (new _Struct(pointer this["`t"],NumGet(this[""],0,"PTR")))[_key_]
-        else Return (new _Struct(pointer (!pointer&&_defobj_?_defobj_:this["`t"]),NumGet(this[""],0,"PTR")))[_key_,opt]
-      } else If _key_ is digit ; struct.1, struct.2.. was called
-      {
-        If _Struct.HasKey("_" this["`t"]){ ;???????????
-          If (opt="") ; address of item requested
-            return this[""]+sizeof(this["`t"])*(_key_-1)
-          If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t"] "," )){  ; StrGet 1 character only
-            Return StrGet(this[""]+sizeof(this["`t"])*(_key_-1),1,this["`f"])
-          } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t"] "," ){ ; StrGet string
-            Return StrGet(NumGet(this[""]+sizeof(this["`t"])*(_key_-1),0,"PTR"),this["`f"])
-          } else    ; It is not a pointer and not a string so use NumGet
-            Return NumGet(this[""]+sizeof(this["`t"])*(_key_-1),0,this["`n"])
-        } else
-          return opt?this.__Clone(_key_):(this.__Clone(_key_))[opt]
-      }  else return
-    ; from here on we have items in structure
-    } else If (!this.HasKey("`t" _key_)){
-      If _key_ is digit
-      {
-        If (opt="~")
-          return this.__Clone(_key_)
-        else return (this.__Clone(_key_))[opt]
-      }
-    } else If (this["`r" _key_]){ ; Pointer, create structure using structure its type and address saved in structure
-      Loop % (this["`r" _key_]-1) 
-          pointer.="*"
-      If (opt="~"){
-        Return new _Struct(pointer this["`t" _key_],pointer?NumGet(NumGet(this[""]+this["`b" _key_],0,"PTR"),0,"ptr"):NumGet(this[""]+this["`b" _key_],0,"PTR"))
-      } else Return (new _Struct(pointer this["`t" _key_],pointer?NumGet(NumGet(this[""]+this["`b" _key_],0,"PTR"),0,"ptr"):NumGet(this[""]+this["`b" _key_],0,"PTR")))[opt] ;NumGet(this[""]+this["`b" _key_],0,"PTR") ;this[_key_][opt]
-    } else if (opt=""){        ; Additional parameter was given and it is empty so return pointer to _key_ (struct.key[""])ListVars
-      Return this[""]+this["`b" _key_]
-    } else If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t" _key_] "," )){  ; StrGet 1 character only
-      Return StrGet(this[""]+this["`b" _key_],1,this["`f" _key_])
-    } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ ; StrGet string
-      Return StrGet(NumGet(this[""]+this["`b" _key_],0,"PTR"),this["`f" _key_])
-    } else    ; It is not a pointer and not a string so use NumGet
-      Return NumGet(this[""]+this["`b" _key_],0,this["`n" _key_])
-  }
-  ___SET(_key_="",_value_=-0x8000000000000000 ,opt="~"){
-      global _Struct
-      If (_value_=-0x8000000000000000){ ; Set new Pointer, here a value was assigned e.g. struct[]:=&var
-          this._SetCapacity("`a",0) ; free internal memory as this is not used anymore
-          this.__SETPTR(_key_) ; Reset all pointers in structure
-          Return
-      } else if this["`t"] { ; structure without members (pure pointer)
-        If opt ; optional parameter was given and it is not empty [""]
-          If opt is digit  ; it is a new pointer for structure
-          {
-            If (this["`r"]>1) { ; pointer to pointer...
-              If !NumGet(this[""],0,"PTR") ; pointer is empty, need memory to assign pointer
-                this._SetCapacity("`v",A_PtrSize),NumPut(this._GetAddress("`v"),this[""],0,"PTR")
-              return NumPut(opt,this._GetAddress("`v"),0,"PTR") ; address already set do not need to use internal memory
-            } else return NumPut(opt,this[""],0,"PTR") ; not a pointer to pointer, set pointer in main structure
-          }
-        If (!this["`r"]&&_Struct.HasKey("_" this["`t"])){ ;???????????
-          if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t"] "," ){ 
-            this._SetCapacity("`v",(this["`f"]="CP0" ? 1 : 2)*(StrLen(_value_)+1)) ; +1 for string terminator
-            ,StrPut(_value_,this._GetAddress("`v"),this["`f"]) ; StrPut string to addr
-            ,NumPut(this._GetAddress("`v"),this[""]+sizeof(this["`t"])*(_key_-1),0,"PTR") ; NumPut string addr to key
-          } else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t"] "," ){
-            StrPut(SubStr(_value_,1,1),this[""]+sizeof(this["`t"])*(_key_-1),1,this["`f"]) ; StrPut character key
-          } else
-            NumPut(_value_,this[""]+sizeof(this["`t"])*(_key_-1),0,this["`n"]) ; NumPut new value to key
-          return _value_
-        } else if this["`r"] {
-          Loop % (this["`r"]-1) 
-            pointer.="*"
-          return (new _Struct(pointer this["`t"],this["`r"]?NumGet(this[""],0,"PTR"):this[""]))[_key_]:=_value_
-        }
-      } else if this["`r" _key_]{ ; Pointer
-        If opt ;same as above but our structure has items
-          If opt is digit  
-          {
-            If (this["`r" _key_]>1) {
-              If !NumGet(this[""]+this["`b" _key_],0,"PTR")
-                this._SetCapacity("`v" _key_,A_PtrSize),NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],0,"PTR")
-              return NumPut(opt,this._GetAddress("`v" _key_),0,"PTR")
-            } else return NumPut(opt,this[""] + this["`b" _key_],0,"PTR")
-          }
-        ; else It is a string, use internal memory for string and pointer, then save pointer in key so it is a Pointer to Pointer of a string
-        If InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," )
-          this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+1) + A_PtrSize) ; A_PtrSize to save additionally a pionter to string
-          ,NumPut(this._GetAddress("`v" _key_)+A_PtrSize,this._GetAddress("`v" _key_),0,"PTR") ; NumPut addr of string
-          ,StrPut(_value_,this._GetAddress("`v" _key_)+A_PtrSize,this["`f" _key_]) ; StrPut char to addr+A_PtrSize
-          ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],0,"PTR") ; NumPut pointer addr to key
-        else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t" _key_] "," ) ; same as above but for 1 Character only
-          this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)) ; Internal memory for character
-          ,StrPut(SubStr(_value_,1,1),this._GetAddress("`v" _key_),1,this["`f" _key_]) ; StrPut char to addr
-          ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],0,"PTR") ; NumPut pointer addr to key
-        else
-          this._SetCapacity("`v" _key_,A_PtrSize) ; Internal memory for address
-          ,NumPut(_value_,this._GetAddress("`v" _key_),0,this["`n" _key_])
-          ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],A_PtrSize=8?"UInt64":"UInt") ; NumPut new addr to key
-      } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ 
-        this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+1)) ; +1 for string terminator
-        ,StrPut(_value_,this._GetAddress("`v" _key_),this["`f" _key_]) ; StrPut string to addr
-        ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],0,"PTR") ; NumPut string addr to key
-      } else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t" _key_] "," ){
-        StrPut(SubStr(_value_,1,1),this[""] + this["`b" _key_],1,this["`f" _key_]) ; StrPut character key
+		else if !(idx:=p.MaxIndex())
+			_field_:=_key_,opt:="~"
+		else {
+		  ObjInsert(p,1,_key_)
+			opt:=ObjRemove(p),_key_:=ObjRemove(p)
+			; ListVars
+			; MsgBox % p.1 "-" p.2 "-" p.3 "-" p.MaxIndex()
+			for k,v in p
+				this:=this[v]
+		}
+    If this["`t"] ; structure without keys/members
+      _key_:="" ; set _key_ empty so items below will resolve to our structure
+    If (opt!="~"){
+      If (opt=""){
+        If _field_ is integer
+          return (this["`r"]?NumGet(this[""],"PTR"):this[""])+sizeof(this["`t"])*(_field_-1)
+        else return this["`r" _key_]?NumGet(this[""]+this["`b" _key_],"PTR"):this[""]+this["`b" _key_] ;+sizeof(this["`t" _key_])*(_field_-1)
+      } else If opt is integer
+      { ;offset to a item e.g. struct.a[100] ("Uint a[100]")
+		; MsgBox % "ja " 
+        If (_Struct.HasKey("_" this["`t" _key_]) && this[" " _key_]>1) {
+				  If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t" _key_] "," )){  ; StrGet 1 character only
+					Return StrGet(this[""]+this["`b" _key_]+(opt-1)*sizeof(this["`t" _key_]),1,this["`f" _key_])
+				  } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ ; StrGet string
+					Return StrGet(NumGet(this[""]+this["`b" _key_]+(opt-1)*A_PtrSize,"PTR"),this["`f" _key_])
+				  } else {
+					Return NumGet(this[""]+this["`b" _key_]+(opt-1)*sizeof(this["`t" _key_]),this["`n" _key_])
+				  }
+				} else Return new _Struct(this["`t" _key_],this[""]+this["`b" _key_]+(opt-1)*sizeof(this["`t" _key_]))
       } else
-        NumPut(_value_,this[""]+this["`b" _key_],0,this["`n" _key_]) ; NumPut new value to key
-      Return _value_
+        return this[_key_][opt]
+    } else If _field_ is integer
+    { ; array access (must be listed first because otherwise this["`r" _key_] cannot be resolved
+      If (_key_){ ; Offset for item
+        return this.__Clone(_field_)
+      } else if this["`r"] {
+        Pointer:=""
+        Loop % (this["`r"]-1) ; dip into one step and return a new structure
+          pointer.="*"
+        If pointer
+          Return new _Struct(pointer this["`t"],NumGet(this[""],"PTR")+A_PtrSize*(_field_-1))
+        else Return new _Struct(pointer this["`t"],NumGet(this[""],"PTR")+sizeof(this["`t"])*(_field_-1)).1
+      } else if _Struct.HasKey("_" this["`t"]) {
+        If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t"] "," )){  ; StrGet 1 character only
+          Return StrGet(this[""]+sizeof(this["`t"])*(_field_-1),1,this["`f"])
+        } else if InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t"] "," ){ ; StrGet string
+					Return StrGet(NumGet(this[""]+A_PtrSize*(_field_-1),"PTR"),this["`f"])
+        } else { ; resolve pointer
+            Return NumGet(this[""]+sizeof(this["`t"])*(_field_-1),this["`n"])
+        }
+      } else {
+        MsgBox,0,Unhandled 1, please ask for help on AutoHotkey Forum
+      }
+    } else If this["`r" _key_] { ;pointer
+      Pointer:=""
+      Loop % (this["`r" _key_]-1) ; dip into one step and return a new structure
+          pointer.="*"
+      If (_key_=""){
+        return this[1][_field_]
+      } else {
+        Return new _Struct(pointer this["`t" _key_],NumGet(this[""]+this["`b" _key_],"PTR"))
+      }
+    } else if _Struct.HasKey("_" this["`t" _key_]) { ; default data type, not pointer
+      If (this[" " _key_]>1)
+        Return new _Struct(this["`t" _key_],this[""] + this["`b" _key_])
+      else If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t" _key_] "," )){  ; StrGet 1 character only
+        Return StrGet(this[""]+this["`b" _key_],1,this["`f" _key_])
+      } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ ; StrGet string
+        Return StrGet(NumGet(this[""]+this["`b" _key_],"PTR"),this["`f" _key_])
+      } else {
+        Return NumGet(this[""]+this["`b" _key_],this["`n" _key_])
+      }
+    } else { ; the field is a non pointer structure
+      Return new _Struct(this["`t" _key_],this[""]+this["`b" _key_])
+    }
+  }
+  ___SET(_key_,p*){ ;="",_value_=-0x8000000000000000 ,opt="~"){
+    If !(idx:=p.MaxIndex()) ; Set new Pointer, here a value was assigned e.g. struct[]:=&var
+      return this[""] :=_key_,this._SetCapacity("`a",0) ; free internal memory, it will not be used anymore
+    else if (idx=1)
+			_value_:=p.1,opt:="~"
+		else if (idx>1){
+      ObjInsert(p,1,_key_)
+			If (p[idx]="")
+				opt:=ObjRemove(p),_value_:=ObjRemove(p),_key_:=ObjRemove(p)
+      else _value_:=ObjRemove(p),_key_:=ObjRemove(p),opt:="~"
+			for k,v in p
+				this:=this[v]
+    }
+
+    If this["`t"] ; structure without members
+      _field_:=_key_,_key_:="" ; set _key_ empty so it will resolve to our structure
+    else _field_:=_key_
+    If this["`r" _key_] { ; Pointer
+			If opt is integer
+        return NumPut(opt,this[""] + this["`b" _key_],"PTR")
+      else if this.HasKey("`t" _key_) {
+        Pointer:=""
+        Loop % (this["`r" _key_]-1) ; dip into one step and return a new structure
+          pointer.="*"
+        If _key_
+          Return (new _Struct(pointer this["`t" _key_],NumGet(this[""] + this["`b" _key_],"PTR"))).1:=_value_
+        else Return (new _Struct(pointer this["`t"],NumGet(this[""],"PTR")))[_field_]:=_value_
+      } else If _field_ is Integer
+       if (_key_="") ; replace this for the operation
+        _this:=this,this:=this.__Clone(_Field_)
+      If InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," )
+        StrPut(_value_,NumGet(NumGet(this[""]+this["`b" _key_],"PTR"),"PTR"),this["`f" _key_]) ; StrPut char to addr+A_PtrSize
+      else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t" _key_] "," ){ ; same as above but for 1 Character only
+        StrPut(_value_,NumGet(this[""]+this["`b" _key_],"PTR"),1,this["`f" _key_]) ; StrPut char to addr
+      } else
+        NumPut(_value_,NumGet(this[""]+this["`b" _key_],"PTR"),this["`n" _key_])
+      If _field_ is integer ; restore this after operation
+        this:=_this
+    } else if (RegExMatch(_field_,"^\d+$") && _key_="") {
+      if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t"] "," ){ 
+        StrPut(_value_,NumGet(this[""]+A_PtrSize*(_field_-1),"PTR"),this["`f"]) ; StrPut string to addr
+      } else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t" _key_] "," ){
+        StrPut(_value_,this[""] + sizeof(this["`t"])*(_field_-1),1,this["`f"])
+      } else
+        NumPut(_value_,this[""] + sizeof(this["`t"])*(_field_-1),this["`n"]) ; NumPut new value to key
+    } else if opt is integer
+    {
+      return NumPut(opt,this[""] + this["`b" _key_],"PTR")
+    } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ 
+      this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+1)) ; +1 for string terminator
+      ,StrPut(_value_,this._GetAddress("`v" _key_),this["`f" _key_]) ; StrPut string to addr
+      ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],"PTR") ; NumPut string addr to key
+    } else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t" _key_] "," ){
+      StrPut(_value_,this[""] + this["`b" _key_],1,this["`f" _key_]) ; StrPut character key
+    } else
+      NumPut(_value_,this[""]+this["`b" _key_],this["`n" _key_]) ; NumPut new value to key
+    Return _value_
   }
 }
