@@ -1,27 +1,39 @@
-﻿;~ #include <MemORYMODULE>
+﻿;: Title: _Struct by HotKeyIt
+;
+
 ; Function: _Struct
 ; Description:
-;      _Struct is based on AHK_L Objects and supports both, ANSI and UNICODE version, so to use it you will require <a href=http://www.autohotkey.com/forum/viewtopic.php?t=43049>Lexikos AutoHotkey_L.exe</a> or other versions based on it that supports objects.<br><br>new _Struct is used to create new structure. You can create predefined structures that are saved as global variables or pass you own structure definition.<br>_Struct supportes structure in structure as well as Arrays of structures and Vectors.<br>Visit <a href=http://www.autohotkey.com/forum/viewtopic.php?t=43049>_Struct at AutoHotkey</a> forum, any feedback is welcome.
+;      _Struct is based on AHK_L objects and supports both, ANSI and UNICODE version. To use it you will require <a href=http://www.autohotkey.com/forum/viewtopic.php?t=43049>Lexikos AutoHotkey_L.exe</a> or other versions based on it.<br><br>new _Struct is used to create new structure. A structure must be defined as a global variable or an item of global class (e.g. "MyClass.Struct").<br>_Struct can handle structure in structure as well as Arrays of structures and Vectors.<br>Visit <a href=http://www.autohotkey.com/forum/viewtopic.php?t=43049>_Struct on AutoHotkey</a> forum, any feedback is welcome.
 ; Syntax: MyStruct:= new _Struct(Structure_Definition,Address,initialization)
 ; Parameters:
-;	   General Design - Class _Struct will create Object(s) that will manage fields of structure(s), for example RC := new _Struct("RECT") creates a RECT structure with fields left,top,right,bottom. To pass structure its pointer to a function or DllCall or SendMessage you will need to use RC[""] or RC[].<br><br>To access fields you can use usual Object syntax: RC.left, RC.right ...<br>To set a field of the structure use RC.top := 100.
-;	   Field types - All AutoHotkey and Windows Data Types are supported<br>AutoHotkey Data Types<br> Int, Uint, Int64, UInt64, Char, UChar, Short, UShort, Fload and Double.<br>Windows Data Types<br> - note, TCHAR UCHAR and CHAR return actual character rather than the value, use Asc() function to find out the value/code<br>Windows Data types: Asc(char)<br>ATOM,BOOL,BOOLEAN,BYTE,CHAR,COLORREF,DWORD,DWORDLONG,DWORD_PTR,<br>DWORD32,DWORD64,FLOAT,HACCEL,HALF_PTR,HANDLE,HBITMAP,HBRUSH,HCOLORSPACE,HCONV,HCONVLIST,HCURSOR,HDC,<br>HDDEDATA,HDESK,HDROP,HDWP,HENHMETAFILE,HFILE,HFONT,HGDIOBJ,HGLOBAL,HHOOK,HICON,HINSTANCE,HKEY,HKL,<br>HLOCAL,HMENU,HMETAFILE,HMODULE,HMONITOR,HPALETTE,HPEN,HRESULT,HRGN,HRSRC,HSZ,HWINSTA,HWND,INT,<br>INT_PTR,INT32,INT64,LANGID,LCID,LCTYPE,LGRPID,LONG,LONGLONG,LONG_PTR,LONG32,LONG64,LPARAM,LPBOOL,<br>LPBYTE,LPCOLORREF,LPCSTR,LPCTSTR,LPCVOID,LPCWSTR,LPDWORD,LPHANDLE,LPINT,LPLONG,LPSTR,LPTSTR,LPVOID,<br>LPWORD,LPWSTR,LRESULT,PBOOL,PBOOLEAN,PBYTE,PCHAR,PCSTR,PCTSTR,PCWSTR,PDWORD,PDWORDLONG,PDWORD_PTR,<br>PDWORD32,PDWORD64,PFLOAT,PHALF_PTR,PHANDLE,PHKEY,PINT,PINT_PTR,PINT32,PINT64,PLCID,PLONG,PLONGLONG,<br>PLONG_PTR,PLONG32,PLONG64,POINTER_32,POINTER_64,POINTER_SIGNED,POINTER_UNSIGNED,PSHORT,PSIZE_T,<br>PSSIZE_T,PSTR,PTBYTE,PTCHAR,PTSTR,PUCHAR,PUHALF_PTR,PUINT,PUINT_PTR,PUINT32,PUINT64,PULONG,PULONGLONG,<br>PULONG_PTR,PULONG32,PULONG64,PUSHORT,PVOID,PWCHAR,PWORD,PWSTR,SC_HANDLE,SC_LOCK,SERVICE_STATUS_HANDLE,<br>SHORT,SIZE_T,SSIZE_T,TBYTE,TCHAR,UCHAR,UHALF_PTR,UINT,UINT_PTR,UINT32,UINT64,ULONG,ULONGLONG,<br>ULONG_PTR,ULONG32,ULONG64,USHORT,USN,WCHAR,WORD,WPARAM
+;	   General Design - Class _Struct will create Object(s) that will manage fields of structure(s), for example<br>left,top,right,bottom<br>RC := new _Struct("RECT")<br>will create a RECT structure with fields left,top,right,bottom of type UInt. To pass the structure its pointer to a function, DllCall or SendMessage use RC[""].<br><br>To access fields you can use usual Object syntax: RC.left, RC.right ...<br>To set a field of the structure use RC.top := 100.
+;	   Field types - Following AutoHotkey and Windows Data Types are supported:<br><br>AutoHotkey Data Types:<br>Int, Uint, Int64, UInt64, Char, UChar, Short, UShort, Fload and Double.<br><br>Windows Data Types:<br>ATOM,BOOL,BOOLEAN,BYTE,CHAR,COLORREF,DWORD,DWORDLONG,DWORD_PTR,<br>DWORD32,DWORD64,FLOAT,HACCEL,HALF_PTR,HANDLE,HBITMAP,HBRUSH,HCOLORSPACE,HCONV,HCONVLIST,HCURSOR,HDC,<br>HDDEDATA,HDESK,HDROP,HDWP,HENHMETAFILE,HFILE,HFONT,HGDIOBJ,HGLOBAL,HHOOK,HICON,HINSTANCE,HKEY,HKL,<br>HLOCAL,HMENU,HMETAFILE,HMODULE,HMONITOR,HPALETTE,HPEN,HRESULT,HRGN,HRSRC,HSZ,HWINSTA,HWND,INT,<br>INT_PTR,INT32,INT64,LANGID,LCID,LCTYPE,LGRPID,LONG,LONGLONG,LONG_PTR,LONG32,LONG64,LPARAM,LPBOOL,<br>LPBYTE,LPCOLORREF,LPCSTR,LPCTSTR,LPCVOID,LPCWSTR,LPDWORD,LPHANDLE,LPINT,LPLONG,LPSTR,LPTSTR,LPVOID,<br>LPWORD,LPWSTR,LRESULT,PBOOL,PBOOLEAN,PBYTE,PCHAR,PCSTR,PCTSTR,PCWSTR,PDWORD,PDWORDLONG,PDWORD_PTR,<br>PDWORD32,PDWORD64,PFLOAT,PHALF_PTR,PHANDLE,PHKEY,PINT,PINT_PTR,PINT32,PINT64,PLCID,PLONG,PLONGLONG,<br>PLONG_PTR,PLONG32,PLONG64,POINTER_32,POINTER_64,POINTER_SIGNED,POINTER_UNSIGNED,PSHORT,PSIZE_T,<br>PSSIZE_T,PSTR,PTBYTE,PTCHAR,PTSTR,PUCHAR,PUHALF_PTR,PUINT,PUINT_PTR,PUINT32,PUINT64,PULONG,PULONGLONG,<br>PULONG_PTR,PULONG32,PULONG64,PUSHORT,PVOID,PWCHAR,PWORD,PWSTR,SC_HANDLE,SC_LOCK,SERVICE_STATUS_HANDLE,<br>SHORT,SIZE_T,SSIZE_T,TBYTE,TCHAR,UCHAR,UHALF_PTR,UINT,UINT_PTR,UINT32,UINT64,ULONG,ULONGLONG,<br>ULONG_PTR,ULONG32,ULONG64,USHORT,USN,WCHAR,WORD,WPARAM
 ;	   <b>Structure Definition</b> - <b>Description</b>
 ;	   User defined - To create a user defined structure you will need to pass a string of predefined types and field names.<br>Default type is UInt, so for example for a RECT structure type can be omited: <b>"left,top,right,left"</b>, which is the same as <b>"Uint left,Uint top,Uint right,Uint bottom"</b><br><br>You can also use structures very similar to C#/C++ syntax, see example.
 ;	   Global - Global variables can be used to save structures, easily pass name of that variable as first parameter, e.g. new _Struct("MyStruct") where MyStruct must be a global variable with structure definition. Also new _Struct(MyStruct) can be used if variable is accessible.
 ;	   Array - To create an array of structures include a digit in the end of your string enclosed in squared brackets.<br>For example "RECT[2]" would create an array of 2 structures.<br>This feature can also be used for user defined arrays, for example "Int age,TCHAR name[10]".
-;	   Union - Using {} you can create union, for example: <br>AHKVar:="{Int64 ContentsInt64,Double ContentsDouble,object},...
-;	   Struct - Using struct{} you can create structures in union.
-;	   Pointer - To create a pointer you can use *, for example: CHR:="char *str" will hold a pointer to a character. Same way you can have a structure in structure so you can call for example Label.NextLabel.NextLabel.JumpToLine
+;	   Union - Using {} you can create union, for example: <br>_AHKVar:="{Int64 ContentsInt64,Double ContentsDouble,object},...
+;	   Struct - Using struct{} you can create structures in union or in structures.
+;	   Pointer - To create a pointer you can use *, for example: CHR:="char *str" will hold a pointer to a character. Same way you can have a structure in structure so you can call it recursive, for example Label.NextLabel.NextLabel.NextLabel.JumpToLine
 ;	   <b>Parameters</b> - <b>Description</b>
-;	   MyStruct - This will become a class object representing the strucuture
-;	   Structure_Definition - C/C++ syntax or usual definition (must not be multiline) e.g. "Int x,Int y", C/C++ definitions must be multiline.
+;	   MyStruct - This is a variable that will hold the object representing the strucuture which is returned by new _Struct(...).
+;	   Structure_Definition - C/C++ syntax or one-line definition e.g. "Int x,Int y".
 ;	   pointer - Pass a pointer as second parameter to occupy existing strucure.
 ;	   Initialization - Pass an object to initialize structure, e.g. {left:100,top:20}. If pointer is not used initialization can be specified in second parameter.
+;	   <b>Methods</b> - <b>Description</b>
+;	   Strct.Type(itm) - Returns type of item or structure
+;	   Strct.AhkType(itm) - Returns AHK type of item or structure to be used with NumGet and NumPut as well as DllCall
+;	   Strct.Size() - Returns size of structure, same as sizeof(MyStruct)
+;	   Strct.SizeT(itm) - Returns size of an item
+;	   Strct.Offset(itm) - Returns offset for items
+;	   Strct.Encoding(itm) - Returns encoding for items, to be used with StrGet and StrPut
+;	   Strct.Alloc(itm,size[,ptrsize]) - Allocates memory in bytes, ptrsize is used to create pointers
+;	   Strct.Capacity(itm) - Returns memory capacity for items.
+;	   Strct.IsPointer(itm) - Returns whether the item is a pointer (defined using *).
 ; Return Value:
-;     Return value is a class object representing your structure
+;     A class object representing your structure
 ; Remarks:
-;		<b>NOTE!!! accessing a field that does not exist will crash your application, these errors are not catched for performance reasons.</b>
+;		<b>NOTE!!! accessing a field that does not exist will cause recrusive calls and will crash your script, these errors are not catched for performance reasons.<br>TCHAR, UCHAR and CHAR return actual character rather than the value, use Asc() function to find out the value/code.
 ; Related:
 ; Example:
 ;		file:Struct_Example.ahk
@@ -312,12 +324,21 @@ Class _Struct {
       If (this._SetCapacity("`v" _key_,!SizeIsInt?A_PtrSize+ptrsize:size + (size//A_PtrSize)*ptrsize)="")
         MsgBox % "Memory for pointer ." _key_ ". of size " (SizeIsInt?size:A_PtrSize) " could not be set!"
       else {
-        If this["`r" _key_]
-          NumPut(ptr:=this._GetAddress("`v" _key_),this[""] + this["`b" _key_],"PTR")
-        else this[]:=ptr:=this._GetAddress("`v" _key_)
-        ptrs:=ptr+(size?size:A_PtrSize)
-        DllCall("RtlZeroMemory","UPTR",ptr,"UInt",this._GetCapacity("`v" _key_))
-        Loop % size?(size//A_PtrSize):1
+				DllCall("RtlZeroMemory","UPTR",ptr,"UInt",this._GetCapacity("`v" _key_))
+			  If (this[" " _key_]>1){
+					ptr:=this[""] + this["`b" _key_]
+					If (this["`r" _key_] || InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR,","," this["`t" _key_] ","))
+						NumPut(ptrs:=this._GetAddress("`v" _key_),ptr+0,"PTR")
+					else if _key_
+						this[_key_,""]:=ptrs:=this._GetAddress("`v" _key_)
+					else this[""]:=ptr:=this._GetAddress("`v" _key_),ptrs:=this._GetAddress("`v" _key_)+(SizeIsInt?size:A_PtrSize)
+				} else {
+	        If (this["`r" _key_] || InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR,","," this["`t" _key_] ","))
+	          NumPut(ptr:=this._GetAddress("`v" _key_),this[""] + this["`b" _key_],"PTR")
+	        else this[""]:=ptr:=this._GetAddress("`v" _key_)
+	        ptrs:=ptr+(size?size:A_PtrSize)
+				}
+        Loop % SizeIsInt?(size//A_PtrSize):1
           NumPut(ptrs+(A_Index-1)*ptrsize,ptr+(A_Index-1)*A_PtrSize,"PTR")
       }
     } else {
@@ -330,19 +351,19 @@ Class _Struct {
   }
   ___NEW(init*){
     this:=this.base
-    new := this.__Clone(1) ;clone structure and keep pointer (1), it will be changed below
+    newobj := this.__Clone(1) ;clone structure and keep pointer (1), it will be changed below
     If (init.MaxIndex() && !IsObject(init.1))
-      new[""] := init.1
+      newobj[""] := init.1
     else If (init.MaxIndex()>1 && !IsObject(init.2))
-      new[""] := init.2
+      newobj[""] := init.2
     else
-      new._SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
-      ,new[""]:=new._GetAddress("`a") ; Save pointer in key [""]
-      ,DllCall("RtlZeroMemory","UPTR",new[""],"UInt",_StructSize_) ; zero-fill memory
+      newobj._SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
+      ,newobj[""]:=newobj._GetAddress("`a") ; Save pointer in key [""]
+      ,DllCall("RtlZeroMemory","UPTR",newobj[""],"UInt",_StructSize_) ; zero-fill memory
     If (IsObject(init.1)||IsObject(init.2))
       for _key_,_value_ in IsObject(init.1)?init.1:init.2
-          new[_key_] := _value_
-    return new
+          newobj[_key_] := _value_
+    return newobj
   }
   
   ; Clone structure and move pointer for new structure
@@ -352,19 +373,19 @@ Class _Struct {
           ,Capacity:_Struct.Capacity,Alloc:_Struct.Alloc,Size:_Struct.Size,SizeT:_Struct.SizeT}
     If offset=1
       return this
-    new:={} ; new structure object
+    newobj:={} ; new structure object
     for _key_,_value_ in this ; copy all values/objects
       If (_key_!="`a")
-        new[_key_]:=_value_ ; add key to new object and assign value
-    new._SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
-    ,new[""]:=new._GetAddress("`a") ; Save pointer in key [""]
-    ,DllCall("RtlZeroMemory","UPTR",new[""],"UInt",_StructSize_) ; zero-fill memory
+        newobj[_key_]:=_value_ ; add key to new object and assign value
+    newobj._SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
+    ,newobj[""]:=newobj._GetAddress("`a") ; Save pointer in key [""]
+    ,DllCall("RtlZeroMemory","UPTR",newobj[""],"UInt",_StructSize_) ; zero-fill memory
     If this["`r"]{ ; its a pointer so we need too move internal memory
-      NumPut(NumGet(this[""],"PTR")+A_PtrSize*(offset-1),new[""],"Ptr")
-      new.base:=_base_ ;assign base of _Struct
+      NumPut(NumGet(this[""],"PTR")+A_PtrSize*(offset-1),newobj[""],"Ptr")
+      newobj.base:=_base_ ;assign base of _Struct
     } else ; do not use internal memory, simply assign new pointer to new structure
-      new.base:=_base_,new[]:=this[""]+sizeof(this)*(offset-1)
-    return new ; return new object
+      newobj.base:=_base_,newobj[]:=this[""]+sizeof(this)*(offset-1)
+    return newobj ; return new object
   }
   ___GET(_key_="",p*){
     If (_key_="")           ; Key was not given so structure[] has been called, return pointer to structure
@@ -373,7 +394,7 @@ Class _Struct {
 			_field_:=_key_,opt:="~"
 		else {
 		  ObjInsert(p,1,_key_)
-			opt:=ObjRemove(p),_key_:=ObjRemove(p)
+			opt:=ObjRemove(p),_field_:=_key_:=ObjRemove(p)
 			; ListVars
 			; MsgBox % p.1 "-" p.2 "-" p.3 "-" p.MaxIndex()
 			for k,v in p
@@ -412,7 +433,10 @@ Class _Struct {
           Return new _Struct(pointer this["`t"],NumGet(this[""],"PTR")+A_PtrSize*(_field_-1))
         else Return new _Struct(pointer this["`t"],NumGet(this[""],"PTR")+sizeof(this["`t"])*(_field_-1)).1
       } else if _Struct.HasKey("_" this["`t"]) {
-        If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t"] "," )){  ; StrGet 1 character only
+        ; If this[" "]
+          ; Return new _Struct(this["`t"],this[""])
+        ; else 
+				If (InStr( ",CHAR,UCHAR,TCHAR,WCHAR," , "," this["`t"] "," )){  ; StrGet 1 character only
           Return StrGet(this[""]+sizeof(this["`t"])*(_field_-1),1,this["`f"])
         } else if InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t"] "," ){ ; StrGet string
 					Return StrGet(NumGet(this[""]+A_PtrSize*(_field_-1),"PTR"),this["`f"])
@@ -420,7 +444,11 @@ Class _Struct {
             Return NumGet(this[""]+sizeof(this["`t"])*(_field_-1),this["`n"])
         }
       } else {
-        MsgBox,0,Unhandled 1, please ask for help on AutoHotkey Forum
+			
+				; return this.__Clone(_field_)
+				; listVars
+				; MsgBox % this[""] "+" sizeof(this["`t"])*(_field_-1) "-" this["`t"]
+        Return new _Struct(this["`t"],this[""]+sizeof(this["`t"])*(_field_-1))
       }
     } else If this["`r" _key_] { ;pointer
       Pointer:=""
@@ -458,7 +486,6 @@ Class _Struct {
 			for k,v in p
 				this:=this[v]
     }
-
     If this["`t"] ; structure without members
       _field_:=_key_,_key_:="" ; set _key_ empty so it will resolve to our structure
     else _field_:=_key_
@@ -478,7 +505,7 @@ Class _Struct {
       If InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," )
         StrPut(_value_,NumGet(NumGet(this[""]+this["`b" _key_],"PTR"),"PTR"),this["`f" _key_]) ; StrPut char to addr+A_PtrSize
       else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t" _key_] "," ){ ; same as above but for 1 Character only
-        StrPut(_value_,NumGet(this[""]+this["`b" _key_],"PTR"),1,this["`f" _key_]) ; StrPut char to addr
+        StrPut(_value_,NumGet(this[""]+this["`b" _key_],"PTR"),this["`f" _key_]) ; StrPut char to addr
       } else
         NumPut(_value_,NumGet(this[""]+this["`b" _key_],"PTR"),this["`n" _key_])
       If _field_ is integer ; restore this after operation
@@ -487,18 +514,16 @@ Class _Struct {
       if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t"] "," ){ 
         StrPut(_value_,NumGet(this[""]+A_PtrSize*(_field_-1),"PTR"),this["`f"]) ; StrPut string to addr
       } else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t" _key_] "," ){
-        StrPut(_value_,this[""] + sizeof(this["`t"])*(_field_-1),1,this["`f"])
+        StrPut(_value_,this[""] + sizeof(this["`t"])*(_field_-1),this["`f"])
       } else
         NumPut(_value_,this[""] + sizeof(this["`t"])*(_field_-1),this["`n"]) ; NumPut new value to key
     } else if opt is integer
     {
       return NumPut(opt,this[""] + this["`b" _key_],"PTR")
     } else if InStr( ",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR," , "," this["`t" _key_] "," ){ 
-      this._SetCapacity("`v" _key_,(this["`f" _key_]="CP0" ? 1 : 2)*(StrLen(_value_)+1)) ; +1 for string terminator
-      ,StrPut(_value_,this._GetAddress("`v" _key_),this["`f" _key_]) ; StrPut string to addr
-      ,NumPut(this._GetAddress("`v" _key_),this[""]+this["`b" _key_],"PTR") ; NumPut string addr to key
+      StrPut(_value_,NumGet(this[""] + this["`b" _key_],"PTR"),this["`f" _key_]) ; StrPut string to addr
     } else if InStr( ",TCHAR,CHAR,UCHAR,WCHAR," , "," this["`t" _key_] "," ){
-      StrPut(_value_,this[""] + this["`b" _key_],1,this["`f" _key_]) ; StrPut character key
+      StrPut(_value_,this[""] + this["`b" _key_],this["`f" _key_]) ; StrPut character key
     } else
       NumPut(_value_,this[""]+this["`b" _key_],this["`n" _key_]) ; NumPut new value to key
     Return _value_
