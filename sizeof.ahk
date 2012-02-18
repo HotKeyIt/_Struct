@@ -19,6 +19,7 @@
 ;		file:
 sizeof_get_global(_TYPE_){
   global
+	local _defobj_
   If InStr(_TYPE_,"."){ ;check for object that holds structure definition
     LoopParse,%_TYPE_%,.
       If A_Index=1
