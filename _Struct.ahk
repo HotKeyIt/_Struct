@@ -310,7 +310,7 @@ Class _Struct {
       If (this._SetCapacity("`v" _key_,Type(size)!="Integer"?A_PtrSize+ptrsize:size + (size//A_PtrSize)*ptrsize)="")
         MsgBox % "Memory for pointer ." _key_ ". of size " (Type(size)!="Integer"?A_PtrSize:size) " could not be set!"
       else {
-        DllCall("RtlZeroMemory","UPTR",ptr,"UInt",this._GetCapacity("`v" _key_))
+        DllCall("RtlZeroMemory","UPTR",this._GetAddress("`v" _key_),"UInt",this._GetCapacity("`v" _key_))
 			  If (this[" " _key_]>1){
 					ptr:=this[""] + this["`b" _key_]
 					If (this["`r" _key_] || InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR,","," this["`t" _key_] ","))
