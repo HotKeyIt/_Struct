@@ -395,10 +395,8 @@ Class _Struct {
 		else {
 		  ObjInsert(p,1,_key_)
 			opt:=ObjRemove(p),_field_:=_key_:=ObjRemove(p)
-			; ListVars
-			; MsgBox % p.1 "-" p.2 "-" p.3 "-" p.MaxIndex()
-			for k,v in p
-				this:=this[v]
+			for key_,value_ in p
+				this:=this[value_]
 		}
     If this["`t"] ; structure without keys/members
       _key_:="" ; set _key_ empty so items below will resolve to our structure
@@ -483,8 +481,8 @@ Class _Struct {
 			If (p[idx]="")
 				opt:=ObjRemove(p),_value_:=ObjRemove(p),_key_:=ObjRemove(p)
       else _value_:=ObjRemove(p),_key_:=ObjRemove(p),opt:="~"
-			for k,v in p
-				this:=this[v]
+			for key_,value_ in p
+				this:=this[value_]
     }
     If this["`t"] ; structure without members
       _field_:=_key_,_key_:="" ; set _key_ empty so it will resolve to our structure
