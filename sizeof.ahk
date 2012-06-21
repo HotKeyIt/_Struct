@@ -47,9 +47,10 @@ sizeof(_TYPE_,parent_offset=0){
      ,PULONG64:" A_PtrSize ",PUSHORT:" A_PtrSize ",PVOID:" A_PtrSize ",PWCHAR:" A_PtrSize ",PWORD:" A_PtrSize ",PWSTR:" A_PtrSize ",SC_HANDLE:" A_PtrSize "
      ,SC_LOCK:" A_PtrSize ",SERVICE_STATUS_HANDLE:" A_PtrSize ",SIZE_T:" A_PtrSize ",UINT_PTR:" A_PtrSize ",ULONG_PTR:" A_PtrSize ",VOID:" A_PtrSize "
      )"
-  
-  _offset_:=parent_offset           ; Init size/offset to 0 or parent_offset
-  
+  local _,_ArrName_,_ArrType_,_ArrSize_,_align_total_,_defobj_,_idx_,_LF_,_LF_BKP_,_match_,_offset_,_padding_,_struct_
+				,_total_union_size_,_uix_,_union_,_union_size_
+	_offset_:=parent_offset           ; Init size/offset to 0 or parent_offset
+
   If IsObject(_TYPE_){    ; If structure object - check for offset in structure and return pointer + last offset + its data size
     _align_total_:=0,_padding_:=0
     If _TYPE_["`t"] ; type only, structure has no members and its a pointer
@@ -71,8 +72,8 @@ sizeof(_TYPE_,parent_offset=0){
           If A_Index=1
             _defobj_:=%A_LoopField%
           else _defobj_:=_defobj_[A_LoopField]
-        Return sizeof(_defobj_)
-      } else Return sizeof(%_TYPE_%)
+        Return sizeof(_defobj_,parent_offset)
+      } else Return sizeof(%_TYPE_%,parent_offset)
   } else _defobj_:=""    
   If InStr(_TYPE_,"`n") {   ; C/C++ style definition, convert
     _offset_:=""            ; This will hold new structure
@@ -150,8 +151,8 @@ sizeof(_TYPE_,parent_offset=0){
         _align_total_:=_align_total_<_padding_?_padding_:_align_total_
       } else { ; resolve structure
 		If (A_PtrSize=8) ; align current offset
-			_offset_+=sizeof(_defobj_?_defobj_:_ArrType_,_offset_)-_offset_-sizeof(_defobj_?_defobj_:_ArrType_)
-        _offset_ += sizeof(_defobj_?_defobj_:_ArrType_) * (_ArrSize_?_ArrSize_:1) ; %Array1% will resolve to global variable
+			_offset_+=sizeof(_defobj_?_defobj_:%_ArrType_%,_offset_)-_offset_-sizeof(_defobj_?_defobj_:%_ArrType_%)
+        _offset_ += sizeof(_defobj_?_defobj_:%_ArrType_%) * (_ArrSize_?_ArrSize_:1) ; %Array1% will resolve to global variable
 	  }
     }
     ; It's a union or struct, check if new member is higher then previous members

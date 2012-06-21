@@ -129,7 +129,10 @@ Class _Struct {
     static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW
           ,IsPointer:_Struct.IsPointer,Offset:_Struct.Offset,Type:_Struct.Type,AHKType:_Struct.AHKType,Encoding:_Struct.Encoding
           ,Capacity:_Struct.Capacity,Alloc:_Struct.Alloc,Size:_Struct.Size,SizeT:_Struct.SizeT}
-    If (RegExMatch(_TYPE_,"^[\w\d\._]+$") && !_Struct.HasKey(_TYPE_)){ ; structures name was supplied, resolve to global var and run again
+		local _,_ArrType_,_ArrName_,_ArrSize_,_align_total_,_defobj_,_IsPtr_,_key_,_LF_,_LF_BKP_,_match_,_offset_
+					,_struct_,_StructSize_,_total_union_size_,_union_,_union_size_,_value_
+		
+		If (RegExMatch(_TYPE_,"^[\w\d\._]+$") && !_Struct.HasKey(_TYPE_)){ ; structures name was supplied, resolve to global var and run again
       If InStr(_TYPE_,"."){ ;check for object that holds structure definition
         Loop,Parse,_TYPE_,.
           If A_Index=1
