@@ -58,7 +58,7 @@ sizeof(_TYPE_,parent_offset:=0){
      ,PULONG64:" A_PtrSize ",PUSHORT:" A_PtrSize ",PVOID:" A_PtrSize ",PWCHAR:" A_PtrSize ",PWORD:" A_PtrSize ",PWSTR:" A_PtrSize ",SC_HANDLE:" A_PtrSize "
      ,SC_LOCK:" A_PtrSize ",SERVICE_STATUS_HANDLE:" A_PtrSize ",SIZE_T:" A_PtrSize ",UINT_PTR:" A_PtrSize ",ULONG_PTR:" A_PtrSize ",VOID:" A_PtrSize "
      )"
-  
+  _ArrName_:=""
   _offset_:=parent_offset           ; Init size/offset to 0 or parent_offset
   
   If IsObject(_TYPE_){    ; If structure object - check for offset in structure and return pointer + last offset + its data size
@@ -82,8 +82,8 @@ sizeof(_TYPE_,parent_offset:=0){
         If A_Index=1
           _defobj_:=sizeof_get_global(A_LoopField)
         else _defobj_:=_defobj_[A_LoopField]
-      Return sizeof(_defobj_)
-    } else Return sizeof(sizeof_get_global(_TYPE_))
+      Return sizeof(_defobj_,parent_offset)
+    } else Return sizeof(sizeof_get_global(_TYPE_),parent_offset)
   } else _defobj_:=""    
   If InStr(_TYPE_,"`n") {   ; C/C++ style definition, convert
     _offset_:=""            ; This will hold new structure

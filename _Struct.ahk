@@ -115,7 +115,8 @@ Class _Struct {
     static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW
           ,IsPointer:_Struct.IsPointer,Offset:_Struct.Offset,Type:_Struct.Type,AHKType:_Struct.AHKType,Encoding:_Struct.Encoding
           ,Capacity:_Struct.Capacity,Alloc:_Struct.Alloc,Size:_Struct.Size,SizeT:_Struct.SizeT}
-    If (RegExMatch(_TYPE_,"^[\w\d\._]+$") && !_Struct.HasKey(_TYPE_)){ ; structures name was supplied, resolve to global var and run again
+		_ArrName_:="",_offset_:=""
+		If (RegExMatch(_TYPE_,"^[\w\d\._]+$") && !_Struct.HasKey(_TYPE_)){ ; structures name was supplied, resolve to global var and run again
       If InStr(_TYPE_,"."){ ;check for object that holds structure definition
         LoopParse,%_TYPE_%,.
           If A_Index=1
@@ -216,10 +217,6 @@ Class _Struct {
           _ArrName_:=_ArrType_,_ArrType_:="UInt"
       }
       If InStr(_ArrType_,"."){ ;check for object that holds structure definition
-        IF GetKeyState("Ctrl","P"){
-				Listvars
-				MsgBox ja
-				}
 				LoopParse,%_ArrType_%,.
           If A_Index=1
             _defobj_:=sizeof_get_Global(A_LoopField)
