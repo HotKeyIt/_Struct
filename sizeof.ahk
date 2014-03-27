@@ -18,7 +18,7 @@
 ; Example:
 ;		file:
 
-sizeof(_TYPE_,parent_offset=0){
+sizeof(_TYPE_,parent_offset=0,_align_total_=0){
   ;Windows and AHK Data Types, used to find out the corresponding size
   static _types__:="
   (LTrim Join
@@ -47,21 +47,12 @@ sizeof(_TYPE_,parent_offset=0){
      ,PULONG64:" A_PtrSize ",PUSHORT:" A_PtrSize ",PVOID:" A_PtrSize ",PWCHAR:" A_PtrSize ",PWORD:" A_PtrSize ",PWSTR:" A_PtrSize ",SC_HANDLE:" A_PtrSize "
      ,SC_LOCK:" A_PtrSize ",SERVICE_STATUS_HANDLE:" A_PtrSize ",SIZE_T:" A_PtrSize ",UINT_PTR:" A_PtrSize ",ULONG_PTR:" A_PtrSize ",VOID:" A_PtrSize "
      )"
-  local _,_ArrName_:="",_ArrType_,_ArrSize_,_align_total_,_defobj_,_idx_,_LF_,_LF_BKP_,_match_,_offset_,_padding_,_struct_
+  local _,_ArrName_:="",_ArrType_,_ArrSize_,_defobj_,_idx_,_LF_,_LF_BKP_,_match_,_offset_,_padding_,_struct_
 				,_total_union_size_,_uix_,_union_,_union_size_
 	_offset_:=parent_offset           ; Init size/offset to 0 or parent_offset
 
   If IsObject(_TYPE_){    ; If structure object - check for offset in structure and return pointer + last offset + its data size
-    _align_total_:=0,_padding_:=0
-    If _TYPE_["`t"] ; type only, structure has no members and its a pointer
-        _offset_:=_TYPE_["`r"]?A_PtrSize*_TYPE_[" "]:sizeof(_TYPE_["`t"])*_TYPE_[" "]
-    else
-      for _union_,_struct_ in _TYPE_
-        If (InStr(_union_,"`b")=1)
-          If (_offset_<(_total_union_size_:=_struct_ + (_TYPE_["`r" SubStr(_union_,2)]?A_PtrSize:(sizeof(_TYPE_["`t" SubStr(_union_,2)])*_TYPE_[" " SubStr(_union_,2)]))) )
-            _offset_:=_total_union_size_,_align_total_:=_align_total_<_total_union_size_?_padding_:_total_union_size_
-    _offset_+=(A_PtrSize=8&&_align_total_)?Mod(_offset_,_align_total_):0
-    Return _offset_  ;(_TYPE_["`t"]?4:0) ; if offset 0 and memory set,must be a pointer
+    return _TYPE_["`a`a"]
   }
   
   If RegExMatch(_TYPE_,"^[\w\d\._]+$"){ ; structures name was supplied, resolve to global var and run again
@@ -130,7 +121,7 @@ sizeof(_TYPE_,parent_offset=0){
     StringReplace,_LF_,_LF_,},,A
     
     If InStr(_LF_,"*") ; It's a pointer, size will be always A_PtrSize
-      _offset_ += (A_PtrSize=8&&Mod(_offset_ + A_PtrSize,A_PtrSize)?A_PtrSize-Mod(_offset_ + A_PtrSize,A_PtrSize):0) + A_PtrSize
+      _offset_ += (Mod(_offset_ + A_PtrSize,A_PtrSize)?A_PtrSize-Mod(_offset_ + A_PtrSize,A_PtrSize):0) + A_PtrSize
       ,_align_total_:=_align_total_<A_PtrSize?A_PtrSize:_align_total_
     else {
       ; Split array type and optionally the size of array, e.g. "TCHAR chr[5]"
@@ -147,11 +138,10 @@ sizeof(_TYPE_,parent_offset=0){
       If (_idx_:=InStr( _types_  ,"," _ArrType_ ":")){ ; AHK or Windows data type
         ; find out the size in _types_ and add to total size
         _padding_:=SubStr( _types_  , _idx_+StrLen(_ArrType_)+2 , 1 )
-        _offset_ += (A_PtrSize=8&&Mod(_offset_ + _padding_,_padding_)?_padding_-Mod(_offset_ + _padding_,_padding_):0) + (_padding_ * (_ArrSize_?_ArrSize_:1))
+        _offset_ += (Mod(_offset_ + _padding_,_padding_)?_padding_-Mod(_offset_ + _padding_,_padding_):0) + (_padding_ * (_ArrSize_?_ArrSize_:1))
         _align_total_:=_align_total_<_padding_?_padding_:_align_total_
       } else { ; resolve structure
-		If (A_PtrSize=8) ; align current offset
-			_offset_+=sizeof(_defobj_?_defobj_:%_ArrType_%,_offset_)-_offset_-sizeof(_defobj_?_defobj_:%_ArrType_%)
+		_offset_ += sizeof(_defobj_?_defobj_:%_ArrType_%,_offset_)-_offset_-sizeof(_defobj_?_defobj_:%_ArrType_%)
         _offset_ += sizeof(_defobj_?_defobj_:%_ArrType_%) * (_ArrSize_?_ArrSize_:1) ; %Array1% will resolve to global variable
 	  }
     }
@@ -176,11 +166,13 @@ sizeof(_TYPE_,parent_offset=0){
       ,_union_.Remove() ,_struct_.Remove() ,_union_size_.Remove() ; remove latest items
       ,_LF_BKP_:=SubStr(_LF_BKP_,1,StrLen(_LF_BKP_)-1)
       If !_union_.MaxIndex(){ ; leaving top union, add offset
-        _offset_+=_total_union_size_
+        if Mod(_total_union_size_,_align_total_)
+					_total_union_size_ += _align_total_-Mod(_total_union_size_,_align_total_)
+				_offset_+=_total_union_size_
         _total_union_size_:=0
       }
     }
   }
-  _offset_+=(A_PtrSize=8&&_align_total_)?Mod(_offset_,_align_total_):0
+  _offset_+=_align_total_?Mod(_offset_,_align_total_):0
   Return _offset_
 }
