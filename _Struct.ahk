@@ -205,9 +205,14 @@ Class _Struct {
           If (IsObject(_init_)||IsObject(_pointer_)){ ; Initialization of structures members, e.g. _Struct(_RECT,{left:10,right:20})
             for _key_,_value_ in IsObject(_init_)?_init_:_pointer_
             {
-              If !this["`r"] ; It is not a pointer, assign value
-                this[_key_] := _value_
-              else if (_value_<>"") ; It is not empty
+              If !this["`r"]{ ; It is not a pointer, assign value
+                If InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR,","," this["`t" _key_] ",")
+                  this.Alloc(_key_,StrLen(_value_)*(InStr(".LPWSTR,LPCWSTR,","," this["`t"] ",")||(InStr(",LPTSTR,LPCTSTR,","," this["`t" _key_] ",")&&A_IsUnicode)?2:1))
+                if InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR,CHAR,TCHAR,WCHAR,","," this["`t" _key_] ",")
+                  this[_key_]:=_value_
+                else 
+                  this[_key_] := _value_
+              }else if (_value_<>"") ; It is not empty
                 if (Type(_value_)="Integer") ; It is a new pointer
                   this[_key_][""]:=_value_
             }
@@ -267,9 +272,14 @@ Class _Struct {
     If (IsObject(_init_)||IsObject(_pointer_)){ ; Initialization of structures members, e.g. _Struct(_RECT,{left:10,right:20})
       for _key_,_value_ in IsObject(_init_)?_init_:_pointer_
       {
-        If !this["`r" _key_] ; It is not a pointer, assign value
-          this[_key_] := _value_
-        else if (_value_<>"") ; It is not empty
+        If !this["`r" _key_]{ ; It is not a pointer, assign value
+          If InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR,","," this["`t" _key_] ",")
+            this.Alloc(_key_,StrLen(_value_)*(InStr(".LPWSTR,LPCWSTR,","," this["`t"] ",")||(InStr(",LPTSTR,LPCTSTR,","," this["`t" _key_] ",")&&A_IsUnicode)?2:1))
+          if InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR,CHAR,TCHAR,WCHAR,","," this["`t" _key_] ",")
+            this[_key_]:=_value_
+          else 
+            this[_key_] := _value_
+        }else if (_value_<>"") ; It is not empty
           if (Type(_value_)="Integer") ; It is a new pointer
             this[_key_][""]:=_value_
       }
