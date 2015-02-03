@@ -29,7 +29,7 @@ sizeof_get_global(_TYPE_){
   }
   return %_TYPE_%
 }
-sizeof(_TYPE_,parent_offset:=0,_align_total_ := 0){
+sizeof(_TYPE_,parent_offset:=0,ByRef _align_total_ := 0){
   ;Windows and AHK Data Types, used to find out the corresponding size
   static _types__:="
   (LTrim Q Join
@@ -41,7 +41,7 @@ sizeof(_TYPE_,parent_offset:=0,_align_total_ := 0){
     ,PDWORDLONG:" A_PtrSize ",PDWORD_PTR:" A_PtrSize ",PDWORD32:" A_PtrSize ",PDWORD64:" A_PtrSize ",PFLOAT:" A_PtrSize ",PHALF_PTR:" A_PtrSize "
     ,UINT32:4,ULONG:4,ULONG32:4,DWORDLONG:8,DWORD64:8,ULONGLONG:8,ULONG64:8,DWORD_PTR:" A_PtrSize ",HACCEL:" A_PtrSize ",HANDLE:" A_PtrSize "
      ,HBITMAP:" A_PtrSize ",HBRUSH:" A_PtrSize ",HCOLORSPACE:" A_PtrSize ",HCONV:" A_PtrSize ",HCONVLIST:" A_PtrSize ",HCURSOR:" A_PtrSize ",HDC:" A_PtrSize "
-     ,HDDEDATA:" A_PtrSize ",HDESK:" A_PtrSize ",HDROP:" A_PtrSize ",HDWP:" A_PtrSize ",HENHMETAFILE:" A_PtrSize ",HFONT:" A_PtrSize "
+     ,HDDEDATA:" A_PtrSize ",HDESK:" A_PtrSize ",HDROP:" A_PtrSize ",HDWP:" A_PtrSize ",HENHMETAFILE:" A_PtrSize ",HFONT:" A_PtrSize ",USAGE:" 2 "
    )"
   static _types_:=_types__ "
   (LTrim Q Join
@@ -149,13 +149,12 @@ sizeof(_TYPE_,parent_offset:=0,_align_total_ := 0){
       }
       If (_idx_:=InStr( _types_  ,"," _ArrType_ ":")) ; AHK or Windows data type
         ; find out the size in _types_ and add to total size
-        _padding_:=SubStr( _types_  , _idx_+StrLen(_ArrType_)+2 , 1 )
-      else _padding_:=sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_),_offset_)
-      _offset_ += (Mod(_offset_ + _padding_,_padding_)?_padding_-Mod(_offset_ + _padding_,_padding_):0)
+        _padding_:=SubStr( _types_  , _idx_+StrLen(_ArrType_)+2 , 1 ),_align_total_:=_align_total_<_padding_?_padding_:_align_total_
+      else _padding_:=sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_),0,_align_total)
+      _offset_ += Mod(_offset_,_align_total_)
       If ((_uix_:=_union_.MaxIndex()) && _offset_>_union_[_uix_])
           _union_[_uix_]:=_offset_
       _offset_ += (_padding_ * (_ArrSize_?_ArrSize_:1))
-      _align_total_:=_align_total_<_padding_?_padding_:_align_total_
     }
     ; It's a union or struct, check if new member is higher then previous members
     If (_uix_:=_union_.MaxIndex())
