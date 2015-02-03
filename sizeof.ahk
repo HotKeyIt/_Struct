@@ -151,10 +151,11 @@ sizeof(_TYPE_,parent_offset:=0,_align_total_ := 0){
         ; find out the size in _types_ and add to total size
         _padding_:=SubStr( _types_  , _idx_+StrLen(_ArrType_)+2 , 1 )
       else _padding_:=sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_),_offset_)
-      _offset_ += (Mod(_offset_ + _padding_,_padding_)?_padding_-Mod(_offset_ + _padding_,_padding_):0) + (_padding_ * (_ArrSize_?_ArrSize_:1))
-      _align_total_:=_align_total_<_padding_?_padding_:_align_total_
+      _offset_ += (Mod(_offset_ + _padding_,_padding_)?_padding_-Mod(_offset_ + _padding_,_padding_):0)
       If ((_uix_:=_union_.MaxIndex()) && _offset_-_padding_>_union_[_uix_])
           _union_[_uix_]:=_offset_-_padding_
+      _offset_ += (_padding_ * (_ArrSize_?_ArrSize_:1))
+      _align_total_:=_align_total_<_padding_?_padding_:_align_total_
     }
     ; It's a union or struct, check if new member is higher then previous members
     If (_uix_:=_union_.MaxIndex())
