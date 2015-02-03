@@ -145,16 +145,14 @@ sizeof(_TYPE_,parent_offset:=0,_align_total_ := 0){
           else _defobj_:=_defobj_[A_LoopField]
         _ArrType_:=_defobj_
       }
-      If (_idx_:=InStr( _types_  ,"," _ArrType_ ":")){ ; AHK or Windows data type
+      If (_idx_:=InStr( _types_  ,"," _ArrType_ ":")) ; AHK or Windows data type
         ; find out the size in _types_ and add to total size
         _padding_:=SubStr( _types_  , _idx_+StrLen(_ArrType_)+2 , 1 )
-		_offset_ += (Mod(_offset_ + _padding_,_padding_)?_padding_-Mod(_offset_ + _padding_,_padding_):0) + (_padding_ * (_ArrSize_?_ArrSize_:1))
-        _align_total_:=_align_total_<_padding_?_padding_:_align_total_
-      } else { ; resolve structure
-		_offset_ += sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_),_offset_)-_offset_-sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_))
-		_offset_ += sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_),_offset_,_align_total_)-_offset_-sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_)) + (sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_)) * (_ArrSize_?_ArrSize_:1))
- ; %Array1% will resolve to global variable
-	  }
+      else _padding_:=sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_),_offset_)
+      _offset_ += (Mod(_offset_ + _padding_,_padding_)?_padding_-Mod(_offset_ + _padding_,_padding_):0) + (_padding_ * (_ArrSize_?_ArrSize_:1))
+      _align_total_:=_align_total_<_padding_?_padding_:_align_total_
+      If ((_uix_:=_union_.MaxIndex()) && _offset_-_padding_>_union_[_uix_])
+          _union_[_uix_]:=_offset_-_padding_
     }
     ; It's a union or struct, check if new member is higher then previous members
     If (_uix_:=_union_.MaxIndex())
