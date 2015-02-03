@@ -184,6 +184,6 @@ sizeof(_TYPE_,parent_offset:=0,_align_total_ := 0){
       }
     }
   }
-  _offset_+=Mod(_offset_,_align_total_)
+  _offset_+=Mod(_offset_+Mod(_offset_,_align_total_),_align_total_)+Mod(_offset_,_align_total_)
   Return _offset_
 }
