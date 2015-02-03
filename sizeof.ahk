@@ -120,10 +120,12 @@ sizeof(_TYPE_,parent_offset=0,_align_total_=0){
     _LF_BKP_:=_LF_ ;to check for ending brackets = union,struct
     StringReplace,_LF_,_LF_,},,A
     
-    If InStr(_LF_,"*") ; It's a pointer, size will be always A_PtrSize
+    If InStr(_LF_,"*"){ ; It's a pointer, size will be always A_PtrSize
       _offset_ += (Mod(_offset_ + A_PtrSize,A_PtrSize)?A_PtrSize-Mod(_offset_ + A_PtrSize,A_PtrSize):0) + A_PtrSize
       ,_align_total_:=_align_total_<A_PtrSize?A_PtrSize:_align_total_
-    else {
+      If ((_uix_:=_union_.MaxIndex()) && _offset_-A_PtrSize>_union_[_uix_])
+        _union_[_uix_]:=_offset_-A_PtrSize
+    } else {
       ; Split array type and optionally the size of array, e.g. "TCHAR chr[5]"
       RegExMatch(_LF_,"^\s*(?<ArrType_>[\w\d\._#@]+)?\s*(?<ArrName_>[\w\d\._#@]+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*$",_)
       If (!_ArrName_ && !_ArrSize_ && !InStr( _types_  ,"," _ArrType_ ":"))
