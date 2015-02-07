@@ -116,7 +116,6 @@ sizeof(_TYPE_,parent_offset:=0,ByRef _align_total_ := 0){
   ,_total_union_size_:=0     ; used in combination with above, each loop the total offset is updated if current data size is higher
   ;,_align_total_:=0          ; used to calculate alignment for total size of structure
   ,_in_struct_:=1
-  ,_union_maxsize_:=[]
   ; Parse given structure definition and calculate size
   ; Structures will be resolved by recrusive calls (a structure must be global)
   LoopParse,%_TYPE_%,`,`; ;,%A_Space%%A_Tab%`n`r
@@ -130,7 +129,6 @@ sizeof(_TYPE_,parent_offset:=0,ByRef _align_total_ := 0){
       ; correct offset for union/structure, sizeof_maxsize returns max size of union or structure
         _max_size_:=sizeof_maxsize(SubStr(_TYPE_,_in_struct_-StrLen(A_LoopField)-1+(StrLen(_LF_BKP_)-StrLen(_LF_))))
         ,_union_.Push(_offset_+=(_mod_:=Mod(_offset_,_max_size_))?Mod(_max_size_-_mod_,_max_size_):0)
-        ,_union_maxsize_.Push(_max_size_)
         ,_union_size_.Push(0)
         ,_struct_align_.Push(_align_total_>_max_size_?_align_total_:_max_size_)
         ,_struct_.Push(RegExMatch(_LF_,"i)^struct\s*\{")?(_align_total_:=0,1):0)
@@ -181,18 +179,16 @@ sizeof(_TYPE_,parent_offset:=0,ByRef _align_total_ := 0){
         MsgBox,0, Incorrect structure, missing opening braket {`nProgram will exit now `n%_TYPE_%
         ExitApp
       }
-      ;~ MsgBox % _ArrName_ "`noff: " _offset_ "`n" _struct_align_.1
       ; reset offset and align because we left a union or structure
-      if (_uix_>1 && _struct_[_uix_-1] && _mod_:=Mod(_offset_,_struct_align_[_uix_-1])){
-        ;~ MsgBox % "uix: " _uix_ "`n" _union_maxsize_[_uix_-1]"`n" _struct_align_[_uix_-1] ".`n" _union_maxsize_[_uix_-1] "."
-        _offset_+=Mod(_struct_align_[_uix_-1]-_mod_,_struct_align_[_uix_-1])
-        ;~ MsgBox % _offset_
+      if (_uix_>1 && _struct_[_uix_-1]){
+        If (_mod_:=Mod(_offset_,_struct_align_[_uix_]))
+          _offset_+=Mod(_struct_align_[_uix_]-_mod_,_struct_align_[_uix_])
       } else _offset_:=_union_[_uix_]
       if (_struct_[_uix_] &&_struct_align_[_uix_]>_align_total_)
         _align_total_ := _struct_align_[_uix_]
       ; Increase total size of union/structure if necessary
       _total_union_size_ := _union_size_[_uix_]>_total_union_size_?_union_size_[_uix_]:_total_union_size_
-      ,_union_.Pop() ,_struct_.Pop() ,_union_size_.Pop(),_struct_align_.Pop(),_union_maxsize_.Pop() ; remove latest items
+      ,_union_.Pop() ,_struct_.Pop() ,_union_size_.Pop(),_struct_align_.Pop() ; remove latest items
       ,_LF_BKP_:=SubStr(_LF_BKP_,1,StrLen(_LF_BKP_)-1)
       If (_uix_=1){ ; leaving top union, add offset
         if (_mod_:=Mod(_total_union_size_,_align_total_))
@@ -201,7 +197,6 @@ sizeof(_TYPE_,parent_offset:=0,ByRef _align_total_ := 0){
       }
     }
   }
-  ; _offset_+=_align_total_?Mod(_offset_+Mod(_offset_,_align_total_),_align_total_)+Mod(_offset_,_align_total_):0
   _offset_+= Mod(_align_total_ - Mod(_offset_,_align_total_),_align_total_)
   Return _offset_
 }
@@ -256,7 +251,7 @@ sizeof_maxsize(s){
       if A_LoopField&&!InStr(".union.struct.","." A_LoopField ".")
         if (!InStr(A_LoopField,A_Tab)&&!InStr(A_LoopField," "))
           max:=max<4?4:max
-        else if (sizeof(A_LoopField,0,size) && max<size)
+        else if (sizeof(A_LoopField,0,size:=0) && max<size)
           max:=size
   }
   return max
