@@ -270,7 +270,7 @@ Class _Struct {
         ; Increase total size of union/structure if necessary
         _total_union_size_ := _union_size_[_uix_]>_total_union_size_?_union_size_[_uix_]:_total_union_size_
         ,_union_.Pop(),_struct_.Pop(),_union_size_.Pop(),_struct_align_.Pop(),_LF_BKP_:=SubStr(_LF_BKP_,1,StrLen(_LF_BKP_)-1) ; remove latest items
-        If !_uix_{ ; leaving top union, add offset
+        If (_uix_=1){ ; leaving top union, add offset
           if (_mod_:=Mod(_total_union_size_,_align_total_))
 			_total_union_size_ += Mod(_align_total_-_mod_,_align_total_)
           _offset_+=_total_union_size_,_total_union_size_:=0

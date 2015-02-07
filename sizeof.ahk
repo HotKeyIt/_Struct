@@ -188,7 +188,7 @@ sizeof(_TYPE_,parent_offset:=0,ByRef _align_total_ := 0){
         _align_total_ := _struct_align_[_uix_]
       ; Increase total size of union/structure if necessary
       _total_union_size_ := _union_size_[_uix_]>_total_union_size_?_union_size_[_uix_]:_total_union_size_
-      ,_union_.Pop() ,_struct_.Pop() ,_union_size_.Pop(),_struct_align_.Pop() ; remove latest items
+      ,_union_.Pop(),_struct_.Pop() ,_union_size_.Pop(),_struct_align_.Pop() ; remove latest items
       ,_LF_BKP_:=SubStr(_LF_BKP_,1,StrLen(_LF_BKP_)-1)
       If (_uix_=1){ ; leaving top union, add offset
         if (_mod_:=Mod(_total_union_size_,_align_total_))
