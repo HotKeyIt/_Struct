@@ -251,9 +251,9 @@ Class _Struct {
         _offset_+=sizeof(_defobj_?_defobj_:%_ArrType_%,_offset_,_align_total_)-_offset_-sizeof(_defobj_?_defobj_:%_ArrType_%)
         ,_Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,0,0,_ArrType_,_ArrSize_)
         ; update current union size
-        If (_uix_:=_union_.MaxIndex())
-          _union_size_[_uix_]:=(_offset_ + sizeof(_defobj_?_defobj_:%_ArrType_%) - _union_[_uix_]>_union_size_[_uix_])
-                                            ?(_offset_ + sizeof(_defobj_?_defobj_:%_ArrType_%) - _union_[_uix_]):_union_size_[_uix_]
+        If (_uix_:=_union_.MaxIndex()) && (_max_size_:=_offset_ + sizeof(_defobj_?_defobj_:%_ArrType_%) - _union_[_uix_])>_union_size_[_uix_]
+          _union_size_[_uix_]:=_max_size_
+        _max_size:=0
         ; if not a union or a union + structure then offset must be moved (when structure offset will be reset below
         If (!_uix_||_struct_[_struct_.MaxIndex()])
           _offset_+=this[" " _ArrName_]*sizeof(_defobj_?_defobj_:%_ArrType_%) ; move offset
@@ -264,11 +264,11 @@ Class _Struct {
           ,_align_total_:=_max_size_>_align_total_?_max_size_:_align_total_
           ,_Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,_IsPtr_?"PTR":_Struct.HasKey(_ArrType_)?_Struct["_" _ArrType_]:_ArrType_,_IsPtr_,_ArrType_,_ArrSize_)
         ; update current union size
-        If (_uix_:=_union_.MaxIndex())
-          _union_size_[_uix_]:=(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_uix_]>_union_size_[_uix_])
-                                            ?(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_uix_]):_union_size_[_uix_]
+        If (_uix_:=_union_.MaxIndex()) && (_max_size_:=_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_uix_])>_union_size_[_uix_]
+          _union_size_[_uix_]:=_max_size_
+        _max_size_:=0
         ; if not a union or a union + structure then offset must be moved (when structure offset will be reset below
-        If (!_uix_||_struct_[_struct_.MaxIndex()])
+        If (!_uix_||_struct_[_uix_])
           _offset_+=_IsPtr_?A_PtrSize:(_Struct.HasKey(_ArrType_)?_Struct[_ArrType_]:%_ArrType_%)*this[" " _ArrName_]
       }
       ; Check for ENDING union and reset offset and union helpers

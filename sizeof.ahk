@@ -152,12 +152,11 @@ sizeof(_TYPE_,parent_offset=0,ByRef _align_total_=0){
       _max_size_:=0
     }
     ; It's a union or struct, check if new member is higher then previous members
-    If (_uix_:=_union_.MaxIndex())
-          _union_size_[_uix_]:=(_offset_ - _union_[_uix_]>_union_size_[_uix_])
-                                            ?(_offset_ - _union_[_uix_]):_union_size_[_uix_]
-
+    If (_uix_:=_union_.MaxIndex()) && (_max_size_:=_offset_ - _union_[_uix_])>_union_size_[_uix_]
+      _union_size_[_uix_]:=_max_size_
+    _max_size_:=0
     ; It's a union and not struct
-    If (_uix_ && !_struct_[_struct_.MaxIndex()])
+    If (_uix_ && !_struct_[_uix_])
       _offset_:=_union_[_uix_]
 
     ; Check for ENDING union and reset offset and union helpers
@@ -171,6 +170,7 @@ sizeof(_TYPE_,parent_offset=0,ByRef _align_total_=0){
         If (_mod_:=Mod(_offset_,_struct_align_[_uix_]))
           _offset_+=Mod(_struct_align_[_uix_]-_mod_,_struct_align_[_uix_])
       } else _offset_:=_union_[_uix_]
+      ; a member of union/struct is smaller than previous align, restore
       if (_struct_[_uix_] &&_struct_align_[_uix_]>_align_total_)
         _align_total_ := _struct_align_[_uix_]
       ; Increase total size of union/structure if necessary
