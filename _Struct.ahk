@@ -38,7 +38,7 @@
 ; Example:
 ;		file:Struct_Example.ahk
 ;
-#Include <sizeof>
+; #Include <sizeof>
 Class _Struct {
 	; Data Sizes
   static PTR:=A_PtrSize,UPTR:=A_PtrSize,SHORT:=2,USHORT:=2,INT:=4,UINT:=4,__int64:=8,INT64:=8,UINT64:=8,DOUBLE:=8,FLOAT:=4,CHAR:=1,UCHAR:=1,VOID:=A_PtrSize
@@ -54,13 +54,13 @@ Class _Struct {
     ,HLOCAL:=A_PtrSize,HMENU:=A_PtrSize,HMETAFILE:=A_PtrSize,HMODULE:=A_PtrSize,HMONITOR:=A_PtrSize,HPALETTE:=A_PtrSize,HPEN:=A_PtrSize
     ,HRGN:=A_PtrSize,HRSRC:=A_PtrSize,HSZ:=A_PtrSize,HWINSTA:=A_PtrSize,HWND:=A_PtrSize,LPARAM:=A_PtrSize,LPBOOL:=A_PtrSize,LPBYTE:=A_PtrSize
     ,LPCOLORREF:=A_PtrSize,LPCSTR:=A_PtrSize,LPCTSTR:=A_PtrSize,LPCVOID:=A_PtrSize,LPCWSTR:=A_PtrSize,LPDWORD:=A_PtrSize,LPHANDLE:=A_PtrSize
-    ,LPINT:=A_PtrSize,LPLONG:=A_PtrSize,LPSTR:=A_PtrSize,LPTSTR:=A_PtrSize,LPVOID:=A_PtrSize,LPWORD:=A_PtrSize,LPWSTR:=A_PtrSize,PHANDLE:=A_PtrSize
+    ,LPINT:=A_PtrSize,LPLONG:=A_PtrSize,LPSTR:=A_PtrSize,LPTSTR:=A_PtrSize,LPVOID:=A_PtrSize,LPWORD:=A_PtrSize,LPWSTR:=A_PtrSize,PHANDLE:=A_PtrSize,USAGE:=2
   static PHKEY:=A_PtrSize,PINT:=A_PtrSize,PINT_PTR:=A_PtrSize,PINT32:=A_PtrSize,PINT64:=A_PtrSize,PLCID:=A_PtrSize,PLONG:=A_PtrSize,PLONGLONG:=A_PtrSize
     ,PLONG_PTR:=A_PtrSize,PLONG32:=A_PtrSize,PLONG64:=A_PtrSize,POINTER_32:=A_PtrSize,POINTER_UNSIGNED:=A_PtrSize,PSHORT:=A_PtrSize,PSIZE_T:=A_PtrSize
     ,PSSIZE_T:=A_PtrSize,PSTR:=A_PtrSize,PTBYTE:=A_PtrSize,PTCHAR:=A_PtrSize,PTSTR:=A_PtrSize,PUCHAR:=A_PtrSize,PUHALF_PTR:=A_PtrSize,PUINT:=A_PtrSize
     ,PUINT_PTR:=A_PtrSize,PUINT32:=A_PtrSize,PUINT64:=A_PtrSize,PULONG:=A_PtrSize,PULONGLONG:=A_PtrSize,PULONG_PTR:=A_PtrSize,PULONG32:=A_PtrSize
     ,PULONG64:=A_PtrSize,PUSHORT:=A_PtrSize,PVOID:=A_PtrSize,PWCHAR:=A_PtrSize,PWORD:=A_PtrSize,PWSTR:=A_PtrSize,SC_HANDLE:=A_PtrSize
-    ,SC_LOCK:=A_PtrSize,SERVICE_STATUS_HANDLE:=A_PtrSize,SIZE_T:=A_PtrSize,UINT_PTR:=A_PtrSize,ULONG_PTR:=A_PtrSize,ATOM:=2,LANGID:=2,WCHAR:=2,WORD:=2,USAGE:=2
+    ,SC_LOCK:=A_PtrSize,SERVICE_STATUS_HANDLE:=A_PtrSize,SIZE_T:=A_PtrSize,UINT_PTR:=A_PtrSize,ULONG_PTR:=A_PtrSize,ATOM:=2,LANGID:=2,WCHAR:=2,WORD:=2
 	; Data Types
   static _PTR:="PTR",_UPTR:="UPTR",_SHORT:="Short",_USHORT:="UShort",_INT:="Int",_UINT:="UInt"
     ,_INT64:="Int64",_UINT64:="UInt64",_DOUBLE:="Double",_FLOAT:="Float",_CHAR:="Char",_UCHAR:="UChar"
@@ -129,8 +129,8 @@ Class _Struct {
     If (_pointer_ && !IsObject(_pointer_))
       this[""] := _pointer_,this["`a"]:=0,this["`a`a"]:=sizeof(_TYPE_)
     else
-      this._SetCapacity("`a",_StructSize_:=sizeof(_TYPE_)) ; Set Capacity in key ["`a"]
-      ,this[""]:=this._GetAddress("`a") ; Save pointer in key [""]
+      this.SetCapacity("`a",_StructSize_:=sizeof(_TYPE_)) ; Set Capacity in key ["`a"]
+      ,this[""]:=this.GetAddress("`a") ; Save pointer in key [""]
       ,DllCall("RtlZeroMemory","UPTR",this[""],"UInt",this["`a`a"]:=_StructSize_) ; zero-fill memory
     ; C/C++ style structure definition, convert it
     If InStr(_TYPE_,"`n") {
@@ -147,7 +147,7 @@ Class _Struct {
               If (!_LF_ && _ArrType_:=RegExMatch(A_LoopField,"[\w\d_]\s+[\w\d_]")) ; new line, find out data type and save key in _LF_ Data type will be added later
                 _LF_:=RegExReplace(A_LoopField,"[\w\d_]\K\s+.*$")
               If Instr(A_LoopField,"{"){ ; Union, also check if it is a structure
-                _union_++,_struct_.Insert(_union_,RegExMatch(A_LoopField,"i)^\s*struct\s*\{"))
+                _union_++,_struct_.Push(_union_,RegExMatch(A_LoopField,"i)^\s*struct\s*\{"))
               } else If InStr(A_LoopField,"}") ; end of union/struct
                 _offset_.="}"
               else { ; not starting or ending struct or union so add definitions and apply Data Type.
@@ -155,7 +155,7 @@ Class _Struct {
                     Loop % _union_
                       _ArrName_.=(_struct_[A_Index]?"struct":"") "{"
                 _offset_.=(_offset_ ? "," : "") _ArrName_ ((_ArrType_ && A_Index!=1)?(_LF_ " "):"") RegExReplace(A_LoopField,"\s+"," ")
-                _ArrName_:="",_union_:=0
+                ,_ArrName_:="",_union_:=0
               }
           }
         }
@@ -164,29 +164,36 @@ Class _Struct {
     }
 
     _offset_:=0                 
-    _union_:=[]                 ; keep track of union level, required to reset offset after union is parsed
-    _struct_:=[]                ; for each union level keep track if it is a structure (because here offset needs to increase
-    _union_size_:=[]          ; keep track of highest member within the union or structure, used to calculate new offset after union
-    _total_union_size_:=0     ; used in combination with above, each loop the total offset is updated if current data size is higher
-    _align_total_:=0			; used to calculate alignment for total size of structure
-	
-    this["`t"]:=0,this["`r"]:=0 ; will identify a Structure Pointer without members
+    ,_union_:=[]                 ; keep track of union level, required to reset offset after union is parsed
+    ,_struct_:=[]                ; for each union level keep track if it is a structure (because here offset needs to increase
+    ,_union_size_:=[]            ; keep track of highest member within the union or structure, used to calculate new offset after union
+    ,_struct_align_:=[]          ; keep track of alignment before structure
+    ,_total_union_size_:=0       ; used in combination with above, each loop the total offset is updated if current data size is higher
+    ,_align_total_:=0			; used to calculate alignment for total size of structure
+	,_in_struct_:=1
+    ,_union_maxsize_:=[]
+    
+    ,this["`t"]:=0,this["`r"]:=0 ; will identify a Structure Pointer without members
 
     ; Parse given structure definition and create struct members
     ; User structures will be resolved by recrusive calls (!!! a structure must be a global variable)
-    LoopParse,%_TYPE_%,`,`;,%A_Space%%A_Tab%`n`r
+    LoopParse,%_TYPE_%,`,`; ;,%A_Space%%A_Tab%`n`r
     {
-      If ("" = _LF_ := A_LoopField)
-        Continue
+      _in_struct_+=StrLen(A_LoopField)+1
+      If ("" = _LF_ := trim(A_LoopField,A_Space A_Tab "`n`r"))
+        continue
+      _LF_BKP_:=_LF_ ;to check for ending brackets = union,struct
       _IsPtr_:=0
       ; Check for STARTING union and set union helpers
-      While (_match_:=RegExMatch(_LF_,"i)^\s*(struct|union)?\s*\{\K"))
-        _union_.Insert(_offset_)
-        ,_union_size_.Insert(0)
-        ,_struct_.Insert(RegExMatch(_LF_,"i)^\s*struct\s*\{")?1:0)
+       While (_match_:=RegExMatch(_LF_,"i)^(struct|union)?\s*\{\K"))
+      ; correct offset for union/structure, sizeof_maxsize returns max size of union or structure
+        _max_size_:=sizeof_maxsize(SubStr(_TYPE_,_in_struct_-StrLen(A_LoopField)-1+(StrLen(_LF_BKP_)-StrLen(_LF_))))
+        ,_union_.Push(_offset_+=(_mod_:=Mod(_offset_,_max_size_))?Mod(_max_size_-_mod_,_max_size_):0)
+        ,_union_maxsize_.Push(_max_size_)
+        ,_union_size_.Push(0)
+        ,_struct_align_.Push(_align_total_>_max_size_?_align_total_:_max_size_)
+        ,_struct_.Push(RegExMatch(_LF_,"i)^struct\s*\{")?(_align_total_:=0,1):0)
         ,_LF_:=SubStr(_LF_,_match_)
-       
-      _LF_BKP_:=_LF_ ;to check for ending brackets = union,struct
       StrReplace,_LF_,%_LF_%,} ;remove all closing brackets (these will be checked later)
       
       ; Check if item is a pointer and remove * for further processing, separate key will store that information
@@ -194,9 +201,8 @@ Class _Struct {
         StrReplace,_LF_,%_LF_%,*,,,1
         _IsPtr_:=A_Index
       }
-
       ; Split off data type, name and size (only data type is mandatory)
-      RegExMatch(_LF_,"^\s*(?<ArrType>[\w\d\._]+)?\s*(?<ArrName>[\w\d_]+)?\s*\[?(?<ArrSize>\d+)?\]?\s*\}*\s*$",_)
+      RegExMatch(_LF_,"^(?<ArrType>[\w\d\._]+)?\s*(?<ArrName>[\w\d_]+)?\s*\[?(?<ArrSize>\d+)?\]?\s*\}*\s*$",_)
       _ArrType_:=_.ArrType,_ArrName_:=_.ArrName,_ArrSize_:=_.ArrSize+0
       If (!_ArrName_ && !_ArrSize_){
         If RegExMatch(_TYPE_,"^\**" _ArrType_ "\**$"){
@@ -222,48 +228,54 @@ Class _Struct {
           _ArrName_:=_ArrType_,_ArrType_:="UInt"
       }
       If InStr(_ArrType_,"."){ ;check for object that holds structure definition
-				LoopParse,%_ArrType_%,.
+	LoopParse,%_ArrType_%,.
           If A_Index=1
             _defobj_:=sizeof_get_Global(A_LoopField)
           else _defobj_:=_defobj_[A_LoopField]
       }
       if (!_IsPtr_ && !_Struct.HasKey(_ArrType_)){  ; _ArrType_ not found resolve to global variable (must contain struct definition)
-    	  _offset_+=sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_),_offset_,_align_total_)-_offset_-sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_))
-          _Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,0,0,_ArrType_,_ArrSize_)
-          ; update current union size
-        If _union_.MaxIndex()
-          _union_size_[_union_.MaxIndex()]:=(_offset_ + sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_)) - _union_[_union_.MaxIndex()]>_union_size_[_union_.MaxIndex()])
-                                            ?(_offset_ + sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_)) - _union_[_union_.MaxIndex()]):_union_size_[_union_.MaxIndex()]
+        _offset_+=sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_),_offset_,_align_total_)-_offset_-sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_))
+        ,_Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,0,0,_ArrType_,_ArrSize_)
+        ; update current union size
+        If (_uix_:=_union_.Length())
+          _union_size_[_uix_]:=(_offset_ + sizeof(_defobj_?_defobj_:%_ArrType_%) - _union_[_uix_]>_union_size_[_uix_])
+                                            ?(_offset_ + sizeof(_defobj_?_defobj_:%_ArrType_%) - _union_[_uix_]):_union_size_[_uix_]
         ; if not a union or a union + structure then offset must be moved (when structure offset will be reset below
-        If (!_union_.MaxIndex()||_struct_[_struct_.MaxIndex()])
+        If (!_uix_||_struct_[_struct_.Length()])
           _offset_+=this[" " _ArrName_]*sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_)) ; move offset
+        ;Continue
       } else {
-				_offset_+=Mod(_offset_,_IsPtr_?A_PtrSize:_Struct[_ArrType_])=0
-                      ?0:(_IsPtr_?A_PtrSize:_Struct[_ArrType_])-Mod(_offset_,(_IsPtr_?A_PtrSize
-                      :_Struct[_ArrType_]))
+        If ((_IsPtr_ || _Struct.HasKey(_ArrType_)))
+          _offset_+=(_mod_:=Mod(_offset_,(_IsPtr_?A_PtrSize:_Struct[_ArrType_])))=0
+                    ?0:(_IsPtr_?A_PtrSize:_Struct[_ArrType_])-_mod_
         _Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,_IsPtr_?"PTR":_Struct.HasKey(_ArrType_)?_Struct["_" _ArrType_]:_ArrType_,_IsPtr_,_ArrType_,_ArrSize_)
         ; update current union size
-        If _union_.MaxIndex()
-          _union_size_[_union_.MaxIndex()]:=(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_union_.MaxIndex()]>_union_size_[_union_.MaxIndex()])
-                                            ?(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_union_.MaxIndex()]):_union_size_[_union_.MaxIndex()]
+        If (_uix_:=_union_.Length())
+          _union_size_[_uix_]:=(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_uix_]>_union_size_[_uix_])
+                                            ?(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_uix_]):_union_size_[_uix_]
         ; if not a union or a union + structure then offset must be moved (when structure offset will be reset below
-        If (!_union_.MaxIndex()||_struct_[_struct_.MaxIndex()])
+        If (!_uix_||_struct_[_struct_.Length()])
           _offset_+=_IsPtr_?A_PtrSize:(_Struct.HasKey(_ArrType_)?_Struct[_ArrType_]:sizeof_get_global(_ArrType_))*this[" " _ArrName_]
       }
       
-      
       ; Check for ENDING union and reset offset and union helpers
       While (SubStr(_LF_BKP_,-1)="}"){
-        If !_union_.MaxIndex(){
+        If (!_uix_:=_union_.Length()){
           MsgBox,0, Incorrect structure, missing opening braket {`nProgram will exit now `n%_TYPE_%
           ExitApp
         } ; Increase total size of union/structure if necessary
-        _offset_:=_union_[_union_.MaxIndex()] ; reset offset because we left a union or structure
-        ,_total_union_size_ := _union_size_[_union_.MaxIndex()]>_total_union_size_?_union_size_[_union_.MaxIndex()]:_total_union_size_
-        ,_union_.Remove(),_struct_.Remove(),_union_size_.Remove(),_LF_BKP_:=SubStr(_LF_BKP_,1,StrLen(_LF_BKP_)-1) ; remove latest items
-        If !_union_.MaxIndex(){ ; leaving top union, add offset
-					if Mod(_total_union_size_,_align_total_)
-						_total_union_size_ += _align_total_-Mod(_total_union_size_,_align_total_)
+        ; reset offset and align because we left a union or structure
+        if (_uix_>1 && _struct_[_uix_-1] && _mod_:=Mod(_offset_,_struct_align_[_uix_-1]))
+          _offset_+=Mod(_struct_align_[_uix_-1]-_mod_,_struct_align_[_uix_-1])
+        else _offset_:=_union_[_uix_]
+        if (_struct_[_uix_]&&_struct_align_[_uix_]>_align_total_)
+          _align_total_ := _struct_align_[_uix_]
+        ; Increase total size of union/structure if necessary
+        _total_union_size_ := _union_size_[_uix_]>_total_union_size_?_union_size_[_uix_]:_total_union_size_
+        ,_union_.Pop(),_struct_.Pop(),_union_size_.Pop(),_LF_BKP_:=SubStr(_LF_BKP_,1,StrLen(_LF_BKP_)-1) ; remove latest items
+        If !_uix_{ ; leaving top union, add offset
+          if (_mod_:=Mod(_total_union_size_,_align_total_))
+			_total_union_size_ += Mod(_align_total_-_mod_,_align_total_)
           _offset_+=_total_union_size_,_total_union_size_:=0
         }
       }
@@ -308,49 +320,49 @@ Class _Struct {
     return this["`b" _key_] 
   }
   Capacity(_key_:=""){
-    return this._GetCapacity("`v" _key_)
+    return this.GetCapacity("`v" _key_)
   }
   Alloc(_key_:="",size:="",ptrsize:=0){
     If (Type(_key_)="Integer")
       ptrsize:=size,size:=_key_,_key_:=""
     If ptrsize {
-      If (this._SetCapacity("`v" _key_,Type(size)!="Integer"?A_PtrSize+ptrsize:size + (size//A_PtrSize)*ptrsize)="")
+      If (this.SetCapacity("`v" _key_,Type(size)!="Integer"?A_PtrSize+ptrsize:size + (size//A_PtrSize)*ptrsize)="")
         MsgBox % "Memory for pointer ." _key_ ". of size " (Type(size)!="Integer"?A_PtrSize:size) " could not be set!"
       else {
-        DllCall("RtlZeroMemory","UPTR",this._GetAddress("`v" _key_),"UInt",this._GetCapacity("`v" _key_))
+        DllCall("RtlZeroMemory","UPTR",this.GetAddress("`v" _key_),"UInt",this.GetCapacity("`v" _key_))
 			  If (this[" " _key_]>1){
 					ptr:=this[""] + this["`b" _key_]
 					If (this["`r" _key_] || InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR,","," this["`t" _key_] ","))
-						NumPut(ptrs:=this._GetAddress("`v" _key_),ptr+0,"PTR")
+						NumPut(ptrs:=this.GetAddress("`v" _key_),ptr+0,"PTR")
 					else if _key_
-						this[_key_,""]:=ptrs:=this._GetAddress("`v" _key_)
-					else this[""]:=ptr:=this._GetAddress("`v" _key_),ptrs:=this._GetAddress("`v" _key_)+(Type(size)!="Integer"?A_PtrSize:size)
+						this[_key_,""]:=ptrs:=this.GetAddress("`v" _key_)
+					else this[""]:=ptr:=this.GetAddress("`v" _key_),ptrs:=this.GetAddress("`v" _key_)+(Type(size)!="Integer"?A_PtrSize:size)
 				} else {
 	        If (this["`r" _key_] || InStr(",LPSTR,LPCSTR,LPTSTR,LPCTSTR,LPWSTR,LPCWSTR,","," this["`t" _key_] ","))
-	          NumPut(ptr:=this._GetAddress("`v" _key_),this[""] + this["`b" _key_],"PTR")
-	        else this[""]:=ptr:=this._GetAddress("`v" _key_)
+	          NumPut(ptr:=this.GetAddress("`v" _key_),this[""] + this["`b" _key_],"PTR")
+	        else this[""]:=ptr:=this.GetAddress("`v" _key_)
 	        ptrs:=ptr+(size?size:A_PtrSize)
 				}
         Loop % (Type(size)="Integer"?(size//A_PtrSize):1)
           NumPut(ptrs+(A_Index-1)*ptrsize,ptr+(A_Index-1)*A_PtrSize,"PTR")
       }
     } else {
-      If (this._SetCapacity("`v" _key_,Type(size)="Integer"?size:A_PtrSize)=""){
+      If (this.SetCapacity("`v" _key_,Type(size)="Integer"?size:A_PtrSize)=""){
         MsgBox % "Memory for pointer ." _key_ ". of size " (Type(size)="Integer"?size:A_PtrSize) " could not be set!"
-      } else NumPut(ptr:=this._GetAddress("`v" _key_),this[""] + this["`b" _key_],"PTR"),DllCall("RtlZeroMemory","UPTR",ptr,"UInt",Type(size)="Integer"?size:A_PtrSize)
+      } else NumPut(ptr:=this.GetAddress("`v" _key_),this[""] + this["`b" _key_],"PTR"),DllCall("RtlZeroMemory","UPTR",ptr,"UInt",Type(size)="Integer"?size:A_PtrSize)
     }
     return ptr
   }
   ___NEW(init*){
     this:=this.base
     newobj := this.__Clone(1) ;clone structure and keep pointer (1), it will be changed below
-    If (init.MaxIndex() && !IsObject(init.1))
+    If (init.Length() && !IsObject(init.1))
       newobj[""] := init.1
-    else If (init.MaxIndex()>1 && !IsObject(init.2))
+    else If (init.Length()>1 && !IsObject(init.2))
       newobj[""] := init.2
     else
-      newobj._SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
-      ,newobj[""]:=newobj._GetAddress("`a") ; Save pointer in key [""]
+      newobj.SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
+      ,newobj[""]:=newobj.GetAddress("`a") ; Save pointer in key [""]
       ,DllCall("RtlZeroMemory","UPTR",newobj[""],"UInt",_StructSize_) ; zero-fill memory
     If (IsObject(init.1)||IsObject(init.2))
       for _key_,_value_ in IsObject(init.1)?init.1:init.2
@@ -369,8 +381,8 @@ Class _Struct {
     for _key_,_value_ in this ; copy all values/objects
       If (_key_!="`a")
         newobj[_key_]:=_value_ ; add key to newobj object and assign value
-    newobj._SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
-    ,newobj[""]:=newobj._GetAddress("`a") ; Save pointer in key [""]
+    newobj.SetCapacity("`a",_StructSize_:=sizeof(this)) ; Set Capacity in key ["`a"]
+    ,newobj[""]:=newobj.GetAddress("`a") ; Save pointer in key [""]
     ,DllCall("RtlZeroMemory","UPTR",newobj[""],"UInt",_StructSize_) ; zero-fill memory
     If this["`r"]{ ; its a pointer so we need too move internal memory
       NumPut(NumGet(this[""],"PTR")+A_PtrSize*(offset-1),newobj[""],"Ptr")
@@ -382,13 +394,13 @@ Class _Struct {
   ___GET(_key_:="",p*){
     If (_key_="")           ; Key was not given so structure[] has been called, return pointer to structure
       Return this[""]
-		else if !(idx:=p.MaxIndex())
+		else if !(idx:=p.Length())
 			_field_:=_key_,opt:="~"
 		else {
-		  ObjInsert(p,1,_key_)
-			opt:=ObjRemove(p),_field_:=_key_:=ObjRemove(p)
+		  ObjInsertAt(p,1,_key_)
+			opt:=ObjPop(p),_field_:=_key_:=ObjPop(p)
 			; ListVars
-			; MsgBox % p.1 "-" p.2 "-" p.3 "-" p.MaxIndex()
+			; MsgBox % p.1 "-" p.2 "-" p.3 "-" p.Length()
 			for key_,value_ in p
 				this:=this[value_]
 		}
@@ -455,15 +467,15 @@ Class _Struct {
     }
   }
   ___SET(_key_,p*){ ;="",_value_=-0x8000000000000000 ,opt="~"){
-    If !(idx:=p.MaxIndex()) ; Set new Pointer, here a value was assigned e.g. struct[]:=&var
-      return this[""] :=_key_,this._SetCapacity("`a",0) ; free internal memory, it will not be used anymore
+    If !(idx:=p.Length()) ; Set new Pointer, here a value was assigned e.g. struct[]:=&var
+      return this[""] :=_key_,this.SetCapacity("`a",0) ; free internal memory, it will not be used anymore
     else if (idx=1)
 			_value_:=p.1,opt:="~"
 		else if (idx>1){
-      ObjInsert(p,1,_key_)
+      ObjInsertAt(p,1,_key_)
 			If (p[idx]="")
-				opt:=ObjRemove(p),_value_:=ObjRemove(p),_key_:=ObjRemove(p)
-      else _value_:=ObjRemove(p),_key_:=ObjRemove(p),opt:="~"
+				opt:=ObjPop(p),_value_:=ObjPop(p),_key_:=ObjPop(p)
+      else _value_:=ObjPop(p),_key_:=ObjPop(p),opt:="~"
 			for key_,value_ in p
 				this:=this[value_]
     }
