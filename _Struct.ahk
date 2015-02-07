@@ -130,7 +130,7 @@ Class _Struct {
           ,IsPointer:_Struct.IsPointer,Offset:_Struct.Offset,Type:_Struct.Type,AHKType:_Struct.AHKType,Encoding:_Struct.Encoding
           ,Capacity:_Struct.Capacity,Alloc:_Struct.Alloc,Size:_Struct.Size,SizeT:_Struct.SizeT}
 		local _,_ArrType_,_ArrName_:="",_ArrSize_,_align_total_,_defobj_,_IsPtr_,_key_,_LF_,_LF_BKP_,_match_,_offset_:=""
-			,_struct_,_StructSize_,_total_union_size_,_union_,_union_size_,_value_,_mod_,_max_size_,_in_struct_,_union_maxsize_,_struct_align_
+			,_struct_,_StructSize_,_total_union_size_,_union_,_union_size_,_value_,_mod_,_max_size_,_in_struct_,_struct_align_
 		
 		If (RegExMatch(_TYPE_,"^[\w\d\._]+$") && !_Struct.HasKey(_TYPE_)){ ; structures name was supplied, resolve to global var and run again
       If InStr(_TYPE_,"."){ ;check for object that holds structure definition
@@ -187,7 +187,6 @@ Class _Struct {
     ,_total_union_size_:=0       ; used in combination with above, each loop the total offset is updated if current data size is higher
     ,_align_total_:=0			; used to calculate alignment for total size of structure
 	,_in_struct_:=1
-    ,_union_maxsize_:=[]
     
     ,this["`t"]:=0,this["`r"]:=0 ; will identify a Structure Pointer without members
 
@@ -205,11 +204,11 @@ Class _Struct {
       ; correct offset for union/structure, sizeof_maxsize returns max size of union or structure
         _max_size_:=sizeof_maxsize(SubStr(_TYPE_,_in_struct_-StrLen(A_LoopField)-1+(StrLen(_LF_BKP_)-StrLen(_LF_))))
         ,_union_.Insert(_offset_+=(_mod_:=Mod(_offset_,_max_size_))?Mod(_max_size_-_mod_,_max_size_):0)
-        ,_union_maxsize_.Insert(_max_size_)
         ,_union_size_.Insert(0)
         ,_struct_align_.Insert(_align_total_>_max_size_?_align_total_:_max_size_)
         ,_struct_.Insert(RegExMatch(_LF_,"i)^struct\s*\{")?(1,_align_total_:=0):0)
         ,_LF_:=SubStr(_LF_,_match_)
+
       StringReplace,_LF_,_LF_,},,A ;remove all closing brackets (these will be checked later)
       
       ; Check if item is a pointer and remove * for further processing, separate key will store that information
@@ -220,7 +219,6 @@ Class _Struct {
       ; Split off data type, name and size (only data type is mandatory)
       RegExMatch(_LF_,"^(?<ArrType_>[\w\d\._]+)?\s*(?<ArrName_>[\w\d_]+)?\s*\[?(?<ArrSize_>\d+)?\]?\s*\}*\s*$",_)
       If (!_ArrName_ && !_ArrSize_){
-        ; If (_ArrType_=_TYPE_ || (_ArrType_ "*") =_TYPE_ || ("*" _ArrType_=_TYPE_)) {
         If RegExMatch(_TYPE_,"^\**" _ArrType_ "\**$"){
           _Struct.___InitField(this,"",0,_ArrType_,_IsPtr_?"PTR":_Struct.HasKey("_" _ArrType_)?_Struct["_" _ArrType_]:"PTR",_IsPtr_,_ArrType_)
           this.base:=_base_
@@ -262,9 +260,9 @@ Class _Struct {
         ;Continue
       } else {
         If ((_IsPtr_ || _Struct.HasKey(_ArrType_)))
-          _offset_+=(_mod_:=Mod(_offset_,(_IsPtr_?A_PtrSize:_Struct[_ArrType_])))=0
-                    ?0:(_IsPtr_?A_PtrSize:_Struct[_ArrType_])-_mod_
-        _Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,_IsPtr_?"PTR":_Struct.HasKey(_ArrType_)?_Struct["_" _ArrType_]:_ArrType_,_IsPtr_,_ArrType_,_ArrSize_)
+          _offset_+=(_mod_:=Mod(_offset_,_max_size_:=_IsPtr_?A_PtrSize:_Struct[_ArrType_]))=0?0:(_IsPtr_?A_PtrSize:_Struct[_ArrType_])-_mod_
+          ,_align_total_:=_max_size_>_align_total_?_max_size_:_align_total_
+          ,_Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,_IsPtr_?"PTR":_Struct.HasKey(_ArrType_)?_Struct["_" _ArrType_]:_ArrType_,_IsPtr_,_ArrType_,_ArrSize_)
         ; update current union size
         If (_uix_:=_union_.MaxIndex())
           _union_size_[_uix_]:=(_offset_ + _Struct[this["`n" _ArrName_]] - _union_[_uix_]>_union_size_[_uix_])
@@ -273,7 +271,6 @@ Class _Struct {
         If (!_uix_||_struct_[_struct_.MaxIndex()])
           _offset_+=_IsPtr_?A_PtrSize:(_Struct.HasKey(_ArrType_)?_Struct[_ArrType_]:%_ArrType_%)*this[" " _ArrName_]
       }
-      
       ; Check for ENDING union and reset offset and union helpers
       While (SubStr(_LF_BKP_,0)="}"){
         If (!_uix_:=_union_.MaxIndex()){
@@ -281,14 +278,15 @@ Class _Struct {
           ExitApp
         } ; Increase total size of union/structure if necessary
         ; reset offset and align because we left a union or structure
-        if (_uix_>1 && _struct_[_uix_-1] && _mod_:=Mod(_offset_,_struct_align_[_uix_-1]))
-          _offset_+=Mod(_struct_align_[_uix_-1]-_mod_,_struct_align_[_uix_-1])
-        else _offset_:=_union_[_uix_]
+        if (_uix_>1 && _struct_[_uix_-1]){
+          if (_mod_:=Mod(_offset_,_struct_align_[_uix_]))
+          _offset_+=Mod(_struct_align_[_uix_]-_mod_,_struct_align_[_uix_])
+        } else _offset_:=_union_[_uix_]
         if (_struct_[_uix_]&&_struct_align_[_uix_]>_align_total_)
           _align_total_ := _struct_align_[_uix_]
         ; Increase total size of union/structure if necessary
         _total_union_size_ := _union_size_[_uix_]>_total_union_size_?_union_size_[_uix_]:_total_union_size_
-        ,_union_._Remove(),_struct_._Remove(),_union_size_._Remove(),_LF_BKP_:=SubStr(_LF_BKP_,1,StrLen(_LF_BKP_)-1) ; remove latest items
+        ,_union_._Remove(),_struct_._Remove(),_union_size_._Remove(),_struct_align_.Remove(),_LF_BKP_:=SubStr(_LF_BKP_,1,StrLen(_LF_BKP_)-1) ; remove latest items
         If !_uix_{ ; leaving top union, add offset
           if (_mod_:=Mod(_total_union_size_,_align_total_))
 			_total_union_size_ += Mod(_align_total_-_mod_,_align_total_)
