@@ -165,12 +165,11 @@ sizeof(_TYPE_,parent_offset:=0,ByRef _align_total_ := 0){
       _max_size_:=0
     }
     ; It's a union or struct, check if new member is higher then previous members
-    If (_uix_:=_union_.Length())
-          _union_size_[_uix_]:=(_offset_ - _union_[_uix_]>_union_size_[_uix_])
-                                            ?(_offset_ - _union_[_uix_]):_union_size_[_uix_]
-
+    If (_uix_:=_union_.Length()) && (_max_size_:=_offset_ - _union_[_uix_])>_union_size_[_uix_]
+      _union_size_[_uix_]:=_max_size_
+    _max_size_:=0
     ; It's a union and not struct
-    If (_uix_ && !_struct_[_struct_.Length()])
+    If (_uix_ && !_struct_[_uix_])
       _offset_:=_union_[_uix_]
 
     ; Check for ENDING union and reset offset and union helpers
