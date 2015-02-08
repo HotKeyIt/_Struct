@@ -200,7 +200,6 @@ sizeof(_TYPE_,parent_offset:=0,ByRef _align_total_ := 0){
   Return _offset_
 }
 sizeof_maxsize(s){
-  global
   static _types__:="
   (LTrim Join
     ,ATOM:2,LANGID:2,WCHAR:2,WORD:2,PTR:" A_PtrSize ",UPTR:" A_PtrSize ",SHORT:2,USHORT:2,INT:4,UINT:4,INT64:8,UINT64:8,DOUBLE:8,FLOAT:4,CHAR:1,UCHAR:1,__int64:8
@@ -245,8 +244,8 @@ sizeof_maxsize(s){
   }
   LoopParse,%s%,`n,`r
   {
-    struct:=(i:=InStr(A_LoopField," //"))?SubStr(A_LoopField,1,i):A_LoopField
-    LoopParse,%struct%,`;`,{},%A_Space%%A_Tab%
+    _struct_:=(i:=InStr(A_LoopField," //"))?SubStr(A_LoopField,1,i):A_LoopField
+    LoopParse,%_struct_%,`;`,{},%A_Space%%A_Tab%
       if A_LoopField&&!InStr(".union.struct.","." A_LoopField ".")
         if (!InStr(A_LoopField,A_Tab)&&!InStr(A_LoopField," "))
           max:=max<4?4:max
