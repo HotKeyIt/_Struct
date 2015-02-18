@@ -114,7 +114,7 @@ Class _Struct {
   __NEW(_TYPE_,_pointer_:=0,_init_:=0){
     static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW
           ,IsPointer:_Struct.IsPointer,Offset:_Struct.Offset,Type:_Struct.Type,AHKType:_Struct.AHKType,Encoding:_Struct.Encoding
-          ,Capacity:_Struct.Capacity,Alloc:_Struct.Alloc,Size:_Struct.Size,SizeT:_Struct.SizeT}
+          ,Capacity:_Struct.Capacity,Alloc:_Struct.Alloc,Size:_Struct.Size,SizeT:_Struct.SizeT,ToObj:_Struct.ToObj}
 		If (RegExMatch(_TYPE_,"^[\w\d\._]+$") && !_Struct.HasKey(_TYPE_)){ ; structures name was supplied, resolve to global var and run again
       If InStr(_TYPE_,"."){ ;check for object that holds structure definition
         LoopParse,%_TYPE_%,.
@@ -295,6 +295,15 @@ Class _Struct {
     }
     Return this
   }
+	ToObj(struct:=""){
+		obj:=[]
+		for k,v in struct?struct:struct:=this
+			if (Ord(k)=10)
+				If IsObject(_VALUE_:=struct[_TYPE_:=SubStr(k,2)])
+					obj[_TYPE_]:=this.ToObj(_VALUE_)
+				else obj[_TYPE_]:=_VALUE_
+		return obj
+	}
   SizeT(_key_:=""){
     return sizeof(this["`t" _key_])
   }
@@ -371,7 +380,7 @@ Class _Struct {
   ___Clone(offset){
     static _base_:={__GET:_Struct.___GET,__SET:_Struct.___SET,__SETPTR:_Struct.___SETPTR,__Clone:_Struct.___Clone,__NEW:_Struct.___NEW
           ,IsPointer:_Struct.IsPointer,Offset:_Struct.Offset,Type:_Struct.Type,AHKType:_Struct.AHKType,Encoding:_Struct.Encoding
-          ,Capacity:_Struct.Capacity,Alloc:_Struct.Alloc,Size:_Struct.Size,SizeT:_Struct.SizeT}
+          ,Capacity:_Struct.Capacity,Alloc:_Struct.Alloc,Size:_Struct.Size,SizeT:_Struct.SizeT,ToObj:_Struct.ToObj}
     If offset=1
       return this
     newobj:={} ; new structure object
