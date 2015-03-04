@@ -231,8 +231,9 @@ Class _Struct {
           else _defobj_:=_defobj_[A_LoopField]
       }
       if (!_IsPtr_ && !_Struct.HasKey(_ArrType_)){  ; _ArrType_ not found resolve to global variable (must contain struct definition)
-        _offset_+=sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_),_offset_,_align_total_)-_offset_-sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_))
-        ,_Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,0,0,_ArrType_,_ArrSize_)
+        if (sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_),0,_align_total_) && mod:=Mod(_offset_,_align_total_))
+          _offset_+=Mod(_align_total_-_mod_,_align_total_)
+        _Struct.___InitField(this,_ArrName_,_offset_,_ArrType_,0,0,_ArrType_,_ArrSize_)
         ; update current union size
         If (_uix_:=_union_.Length()) && (_max_size_:=_offset_ + sizeof(_defobj_?_defobj_:sizeof_get_global(_ArrType_)) - _union_[_uix_])>_union_size_[_uix_]
           _union_size_[_uix_]:=_max_size_
