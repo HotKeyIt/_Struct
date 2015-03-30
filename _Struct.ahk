@@ -146,7 +146,7 @@ Class _Struct {
               If (!_LF_ && _ArrType_:=RegExMatch(A_LoopField,"[\w\d_]\s+[\w\d_]")) ; new line, find out data type and save key in _LF_ Data type will be added later
                 _LF_:=RegExReplace(A_LoopField,"[\w\d_]\K\s+.*$")
               If Instr(A_LoopField,"{"){ ; Union, also check if it is a structure
-                _union_++,_struct_.Push(_union_,RegExMatch(A_LoopField,"i)^\s*struct\s*\{"))
+                _union_++,_struct_.Push(RegExMatch(A_LoopField,"i)^\s*struct\s*\{"))
               } else If InStr(A_LoopField,"}") ; end of union/struct
                 _offset_.="}"
               else { ; not starting or ending struct or union so add definitions and apply Data Type.
