@@ -47,8 +47,8 @@ sizeof(_TYPE_,parent_offset=0,ByRef _align_total_=0){
      ,PULONG64:" A_PtrSize ",PUSHORT:" A_PtrSize ",PVOID:" A_PtrSize ",PWCHAR:" A_PtrSize ",PWORD:" A_PtrSize ",PWSTR:" A_PtrSize ",SC_HANDLE:" A_PtrSize "
      ,SC_LOCK:" A_PtrSize ",SERVICE_STATUS_HANDLE:" A_PtrSize ",SIZE_T:" A_PtrSize ",UINT_PTR:" A_PtrSize ",ULONG_PTR:" A_PtrSize ",VOID:" A_PtrSize "
      )"
-  local _,_ArrName_:="",_ArrType_,_ArrSize_,_defobj_,_idx_,_LF_,_LF_BKP_,_match_,_offset_,_padding_,_struct_
-				,_total_union_size_,_uix_,_union_,_union_size_,_in_struct_,_mod_,_max_size_,_struct_align_
+  local _:="",_ArrName_:="",_ArrType_:="",_ArrSize_:=0,_defobj_:="",_idx_:=0,_LF_:="",_LF_BKP_:="",_match_:="",_offset_:=0,_padding_:=0,_struct_:=""
+				,_total_union_size_:=0,_uix_:=0,_union_:=0,_union_size_:=0,_in_struct_:=0,_mod_:=0,_max_size_:=0,_struct_align_:=0
 	_offset_:=parent_offset           ; Init size/offset to 0 or parent_offset
 
   If IsObject(_TYPE_){    ; If structure object - check for offset in structure and return pointer + last offset + its data size
